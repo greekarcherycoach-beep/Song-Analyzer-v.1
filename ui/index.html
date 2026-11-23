@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="el" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Song Analyzer + Genre Tagger</title>
+<style>
+:root{
+  --bg:#0b0d12;--bg2:#10131a;--card:#151922;--card2:#1b2030;--line:#262c3b;--line2:#323a4e;
+  --tx:#e8eaf1;--mu:#8a93a8;--ac:#6d8cff;--ac2:#a56bff;--ok:#34d399;--er:#ff6b7a;--wa:#f5b942;--in:#5bc0ff;
+  --shadow:0 10px 30px rgba(0,0,0,.35);--glow:radial-gradient(900px 400px at 10% -10%,rgba(109,140,255,.16),transparent 60%),radial-gradient(700px 380px at 95% 0%,rgba(165,107,255,.12),transparent 60%);
+}
+html[data-theme=light]{
+  --bg:#f3f5fa;--bg2:#ffffff;--card:#ffffff;--card2:#f5f7fc;--line:#e1e5ef;--line2:#cfd6e6;
+  --tx:#1a2030;--mu:#667089;--ac:#4a6cf0;--ac2:#8a54e6;--ok:#0e9f6e;--er:#e0364a;--wa:#c98a0b;--in:#1b8fd1;
+  --shadow:0 8px 24px rgba(40,55,100,.10);--glow:radial-gradient(900px 400px at 10% -10%,rgba(74,108,240,.10),transparent 60%);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);background-image:var(--glow);background-attachment:fixed;color:var(--tx);
+  font:14px/1.5 Inter,system-ui,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+header.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;padding:12px 28px;
+  background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.logo{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:20px;
+  background:linear-gradient(135deg,var(--ac),var(--ac2));box-shadow:0 6px 18px rgba(109,140,255,.35)}
+h1{margin:0;font-size:18px;letter-spacing:.2px;line-height:1.1}
+h1 small{display:block;color:var(--mu);font-weight:400;font-size:12px;margin-top:3px}
+.sp{flex:1}
+main{max-width:1500px;margin:0 auto;padding:20px 28px 60px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.note{font-size:12px;color:var(--mu)}
+label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--mu);font-weight:500}
+label.inl{flex-direction:row;align-items:center;gap:8px;color:var(--tx);font-size:13px;font-weight:400;cursor:pointer}
+input,select,button{font:inherit;color:var(--tx)}
+input[type=text],input:not([type]),input[type=number],select{background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:8px 10px;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 25%,transparent)}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--ac);cursor:pointer;margin:0}
+.btn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;background:var(--card2);border:1px solid var(--line2);border-radius:10px;padding:8px 14px;font-weight:600;transition:transform .08s,border-color .15s,background .15s,opacity .15s}
+.btn:hover:not(:disabled){border-color:var(--ac);transform:translateY(-1px)}
+.btn:active:not(:disabled){transform:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(109,140,255,.30)}
+.btn.ok{background:linear-gradient(135deg,#1fb77f,#2fd4a1);border-color:transparent;color:#05261b}
+.btn.dng:hover:not(:disabled){border-color:var(--er);color:var(--er)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px;font-weight:500}
+.icon{width:36px;height:36px;padding:0;justify-content:center;border-radius:10px}
+
+/* Drop zone */
+#drop{display:flex;align-items:center;gap:18px;flex-wrap:wrap;border:2px dashed var(--line2);background:linear-gradient(180deg,var(--card),var(--card2));transition:all .15s}
+#drop.over{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 10%,var(--card));transform:scale(1.005)}
+#drop .big{font-size:34px}
+#drop .txt{flex:1;min-width:220px}
+#drop .txt b{font-size:15px}
+#folderName{display:inline-block;margin-top:2px;color:var(--ac);font-weight:600}
+
+/* Settings */
+details.card>summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"▾";margin-left:auto;color:var(--mu);transition:transform .2s}
+details.card[open]>summary::after{transform:rotate(180deg)}
+.sgrp{margin-top:14px}
+.sgrp h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mu)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.grid .wide{grid-column:span 2}
+@media(max-width:560px){.grid .wide{grid-column:auto}}
+
+/* Operations bar */
+#ops{position:sticky;top:63px;z-index:20;padding:12px 16px;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(10px)}
+.bar{height:8px;background:var(--bg2);border-radius:6px;overflow:hidden;margin-top:12px;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac),var(--ac2));transition:width .2s;border-radius:6px}
+.bar.busy>i{background-size:28px 28px;background-image:linear-gradient(135deg,rgba(255,255,255,.18) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.18) 50%,rgba(255,255,255,.18) 75%,transparent 75%),linear-gradient(90deg,var(--ac),var(--ac2));animation:stripes 1s linear infinite}
+@keyframes stripes{to{background-position:28px 0,0 0}}
+#status{color:var(--mu);margin-top:8px;min-height:20px;font-size:13px}
+.sep{width:1px;height:26px;background:var(--line2);margin:0 4px}
+
+/* Chips */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-size:12px;color:var(--mu)}
+.chip b{color:var(--tx);font-size:13px}
+.chip.ok b{color:var(--ok)}.chip.er b{color:var(--er)}.chip.ac b{color:var(--ac)}
+
+/* Table */
+.tbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.tbar .search{position:relative;flex:1;min-width:220px;max-width:420px}
+.tbar .search input{width:100%;padding-left:34px}
+.tbar .search::before{content:"🔎";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.7}
+.tw{max-height:calc(100vh - 300px);min-height:340px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg2)}
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:1050px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{position:sticky;top:0;z-index:2;background:var(--card2);font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mu);white-space:nowrap;user-select:none}
+th[data-k]{cursor:pointer}th[data-k]:hover{color:var(--tx)}
+th .ar{opacity:.9;color:var(--ac)}
+tbody tr{transition:background .1s}
+tbody tr:hover{background:color-mix(in srgb,var(--ac) 6%,transparent)}
+tbody tr.sel{background:color-mix(in srgb,var(--ac) 9%,transparent)}
+td.f{max-width:360px}
+td.f .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.f .dr{font-size:11px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.cur{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dim{color:var(--mu)}
+.ext{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;text-transform:uppercase;background:var(--card2);border:1px solid var(--line2);color:var(--mu)}
+.ext.w{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line2))}
+td input.sg{width:100%;min-width:190px}
+td input.sg.chg{border-color:color-mix(in srgb,var(--ac) 65%,var(--line2))}
+.meter{position:relative;width:86px;height:20px;border-radius:6px;background:var(--card2);overflow:hidden;border:1px solid var(--line)}
+.meter i{position:absolute;inset:0 auto 0 0;opacity:.35}
+.meter span{position:relative;display:block;text-align:center;font-size:11px;font-weight:700;line-height:18px}
+.meter.hi i{background:var(--ok)}.meter.mid i{background:var(--wa)}.meter.lo i{background:var(--er)}
+.t3{display:flex;flex-direction:column;gap:3px}
+.t3 span{font-size:11px;color:var(--mu);white-space:nowrap}
+.t3 span b{color:var(--tx);font-weight:600}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--line2);color:var(--mu);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.badge.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.badge.er{color:var(--er);border-color:color-mix(in srgb,var(--er) 45%,transparent);background:color-mix(in srgb,var(--er) 10%,transparent)}
+.badge.wa{color:var(--wa);border-color:color-mix(in srgb,var(--wa) 45%,transparent);background:color-mix(in srgb,var(--wa) 10%,transparent)}
+.badge.in{color:var(--in);border-color:color-mix(in srgb,var(--in) 45%,transparent);background:color-mix(in srgb,var(--in) 10%,transparent)}
+.pl{width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);background:var(--card2);cursor:pointer;display:grid;place-items:center;font-size:11px;padding:0}
+.pl:hover{border-color:var(--ac);color:var(--ac)}
+.pl.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.empty td{padding:60px 10px;text-align:center;color:var(--mu)}
+.empty .em{font-size:38px;display:block;margin-bottom:6px}
+
+details.log{color:var(--mu)}
+pre{max-height:220px;overflow:auto;background:var(--bg2);border:1px solid var(--line);padding:10px;border-radius:10px;font-size:12px;white-space:pre-wrap;color:var(--tx)}
+
+#toasts{position:fixed;right:18px;bottom:18px;z-index:99;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--card2);border:1px solid var(--line2);border-left:4px solid var(--ac);border-radius:10px;padding:10px 14px;box-shadow:var(--shadow);max-width:360px;animation:in .2s ease}
+.toast.ok{border-left-color:var(--ok)}.toast.er{border-left-color:var(--er)}.toast.wa{border-left-color:var(--wa)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}::-webkit-scrollbar-track{background:transparent}
+@media(max-width:700px){header.top,main{padding-left:14px;padding-right:14px}#ops{top:60px}}
+
+/* Virtual rows */
+tbody tr.r{height:60px}
+tbody tr.r>td{height:60px;padding-top:4px;padding-bottom:4px}
+tr.spc>td{padding:0;border:0}
+.t3{max-height:48px;overflow:hidden}.t3 span{line-height:16px}
+
+/* Bulk tools */
+.tools{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:14px}
+.tool{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.tool h4{margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--mu)}
+textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:8px 10px;outline:none;resize:vertical}
+textarea:focus{border-color:var(--ac)}
+
+/* Dialog */
+dialog{background:var(--card);color:var(--tx);border:1px solid var(--line2);border-radius:16px;padding:20px;width:min(920px,94vw);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(3px)}
+dialog h2{margin:0 0 6px;font-size:17px}
+.dtw{max-height:50vh;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px;background:var(--bg2)}
+.dtw table{min-width:0}
+#dlgTb td,#dlgTb th{padding:6px 10px}
+#dlgTb tr.dim{opacity:.5}
+/* Multi-select */
+tbody tr[data-id]{cursor:pointer}
+tbody tr[data-id] input,tbody tr[data-id] button{cursor:auto}
+tbody tr.sel>td:first-child{box-shadow:inset 3px 0 0 var(--ac)}
+#bkCount{color:var(--ac);font-weight:700;font-size:12px}
+.hint{font-size:12px;color:var(--mu);margin:-2px 0 10px}
+.hint kbd{background:var(--card2);border:1px solid var(--line2);border-radius:5px;padding:0 5px;font:inherit;font-size:11px}
+[hidden]{display:none!important}
+.sagrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:8px}
+.sagrid>div{background:var(--bg,#f6f5f2);border-radius:8px;padding:6px 8px}.sagrid b{display:block}
+.sachroma{display:flex;gap:4px;align-items:flex-end;height:70px;margin-top:10px}
+.sachroma div{flex:1;text-align:center;font-size:10px;opacity:.7}.sachroma i{display:block;background:#ff6b8b;border-radius:3px 3px 0 0;margin-bottom:2px}
+ol.sapl{padding-left:22px}ol.sapl li{padding:5px 0}ol.sapl li.now{font-weight:600}
+
+/* ===== v5: διάταξη πλήρους πλάτους, εικονίδια, χρώματα ===== */
+main{max-width:none;width:100%;padding:18px clamp(14px,2vw,32px) 60px;grid-template-columns:minmax(0,1fr)}
+header.top{padding:10px clamp(14px,2vw,32px)}
+h1{font-size:19px;font-weight:700}h1 span{opacity:.35;margin:0 3px}
+.ic{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+.logo .ic{width:22px;height:22px;stroke:#fff}.btn .ic{width:16px;height:16px}
+#drop .big{font-size:0;line-height:0}#drop .big .ic{width:42px;height:42px;color:var(--ac);stroke-width:1.5}
+details.card>summary .ic{color:var(--ac)}
+.oprow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grp+.grp{padding-left:14px;border-left:1px solid var(--line2)}
+.cap{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mu);font-weight:700}
+label.tg{flex-direction:row;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--line2);border-radius:999px;background:var(--bg2);color:var(--mu);cursor:pointer;font-size:13px;font-weight:600;transition:.15s;user-select:none}
+label.tg input{display:none}label.tg small{font-size:11px;font-weight:400;opacity:.75}
+label.tg:hover{border-color:var(--ac)}
+label.tg:has(input:checked){color:var(--tx);border-color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,var(--bg2))}
+label.tg:has(input:checked) .ic{color:var(--ac)}
+#ops select{padding:7px 10px}
+.cam{display:inline-block;min-width:44px;text-align:center;padding:3px 9px;border-radius:8px;font-weight:800;font-size:13px;letter-spacing:.3px;background:hsl(var(--h) 75% 50%/.16);color:hsl(var(--h) 85% 68%);border:1px solid hsl(var(--h) 70% 55%/.45)}
+html[data-theme=light] .cam{color:hsl(var(--h) 75% 30%);background:hsl(var(--h) 80% 50%/.14)}
+.bpm{display:flex;align-items:center;gap:6px}.bpm b{font-size:15px;font-variant-numeric:tabular-nums}
+.ib{padding:3px 5px;border-radius:7px;opacity:.65;background:transparent}.ib:hover:not(:disabled){opacity:1}.ib .ic{width:15px;height:15px}
+.mt{position:relative;width:72px;height:20px;border-radius:6px;background:var(--card2);border:1px solid var(--line);overflow:hidden}
+.mt i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,hsl(var(--h) 80% 55%/.3),hsl(var(--h) 85% 60%/.75))}
+.mt b{position:relative;display:block;text-align:center;font-size:11px;line-height:18px}
+table{min-width:1580px}td{font-variant-numeric:tabular-nums}
+#cmpC table,#plC table{min-width:0}
+.card{transition:border-color .15s}.card:hover{border-color:var(--line2)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></symbol><symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol><symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1"/></symbol><symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9m-3 3 3 3m-6 0 2 2"/></symbol><symbol id="i-tempo" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13V8M9 2h6"/></symbol><symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l4 4v14H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></symbol><symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 21h16"/></symbol><symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M5 7l-3 8a3 3 0 0 0 6 0zM19 7l-3 8a3 3 0 0 0 6 0z"/></symbol><symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h12M4 12h12M4 18h8"/><path d="m18 14 4 3-4 3z"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2"/></symbol><symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol><symbol id="i-log" viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M9 12h6M9 16h6"/></symbol><symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h2m3-6v12m4-16v20m4-14v8m4-4h2"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol></defs></svg>
+<header class="top">
+  <div class="logo"><svg class="ic" viewBox="0 0 24 24"><use href="#i-wave"/></svg></div>
+  <h1>Song Analyzer <span>·</span> Genre Tagger</h1>
+  <span class="chip ac" id="nativeBadge" hidden></span>
+  <div class="sp"></div>
+  <button class="btn icon" id="theme" title="Εναλλαγή θέματος">🌙</button>
+</header>
+
+<main>
+<section class="card" id="drop">
+  <div class="big"><svg class="ic" viewBox="0 0 24 24"><use href="#i-folder"/></svg></div>
+  <div class="txt">
+    <b>Επίλεξε ή σύρε εδώ τον φάκελο με τη μουσική σου</b><br>
+    <span class="note">Σαρώνονται και οι υποφάκελοι. Για εγγραφή tags χρειάζεται Chrome ή Edge.</span><br>
+    <span id="folderName"></span>
+  </div>
+  <div class="row">
+    <button id="pick" class="btn pri"><svg class="ic" viewBox="0 0 24 24"><use href="#i-folder"/></svg> Επιλογή φακέλου</button>
+    <button id="pickRO" class="btn pri" hidden><svg class="ic" viewBox="0 0 24 24"><use href="#i-folder"/></svg> Επιλογή φακέλου (μόνο ανάγνωση)</button>
+    <input type="file" id="fallback" webkitdirectory multiple hidden>
+    <button id="clear" class="btn dng" disabled><svg class="ic" viewBox="0 0 24 24"><use href="#i-trash"/></svg> Καθαρισμός</button>
+  </div>
+</section>
+
+<details class="card" id="settings">
+  <summary><svg class="ic" viewBox="0 0 24 24"><use href="#i-settings"/></svg> Ρυθμίσεις</summary>
+  <div class="sgrp">
+    <h3>Μοντέλο</h3>
+    <div class="grid">
+      <label class="wide">Μοντέλο (Hugging Face repo, ONNX)
+        <input id="model" value="Xenova/discogs-maest-30s-pw-73e-ts"></label>
+      <label>Συσκευή
+        <select id="device"><option value="wasm">CPU (wasm)</option><option value="webgpu">GPU (WebGPU)</option></select></label>
+      <label>Ακρίβεια βαρών (dtype)
+        <select id="dtype"><option value="auto">auto</option><option value="q8">q8 (ελαφρύ)</option><option value="fp16">fp16</option><option value="fp32">fp32</option></select></label>
+    </div>
+  </div>
+  <div class="sgrp">
+    <h3>Μηχανές key &amp; τέμπο</h3>
+    <div class="row"><button class="btn sm" id="okFile" type="button"><svg class="ic" viewBox="0 0 24 24"><use href="#i-key"/></svg> keynet.onnx…</button><input type="file" id="okInp" accept=".onnx" hidden>
+      <button class="btn sm" id="drFile" type="button"><svg class="ic" viewBox="0 0 24 24"><use href="#i-tempo"/></svg> deeprhythm.onnx…</button><input type="file" id="drInp" accept=".onnx" hidden>
+      <span class="note">Αν δεν γίνεται αυτόματη λήψη των μοντέλων, επίλεξε τοπικά τα αρχεία. Αποθηκεύονται στο cache του browser.</span></div>
+  </div>
+  <div class="sgrp">
+    <h3>Ανάλυση</h3>
+    <div class="grid">
+      <label>Παράθυρα 30s ανά κομμάτι
+        <select id="nwin"><option value="1">1 (μέση του κομματιού)</option><option value="3">3 (20% / 50% / 80%)</option></select></label>
+      <label>Μέγιστο μέγεθος αρχείου (MB)
+        <input id="maxmb" type="number" min="5" value="200"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="inl"><input type="checkbox" id="skipEx" checked> Παράλειψη αρχείων που έχουν ήδη Genre</label>
+      <label class="inl" title="Θυμάται τα αποτελέσματα ανά αρχείο, ώστε να μην αναλύονται ξανά"><input type="checkbox" id="useCache" checked> Χρήση cache αποτελεσμάτων</label>
+      <button class="btn sm" id="clearCache" type="button"><svg class="ic" viewBox="0 0 24 24"><use href="#i-trash"/></svg> Καθαρισμός cache</button>
+    </div>
+  </div>
+  <div class="sgrp">
+    <h3>Tag που γράφεται</h3>
+    <div class="grid">
+      <label>Τι γράφεται στο tag
+        <select id="fmt"><option value="style">Style (π.χ. Noise)</option><option value="genre">Genre (π.χ. Electronic)</option><option value="both">Genre - Style (π.χ. Electronic - Noise)</option></select></label>
+      <label>Πλήθος τιμών (top N)
+        <select id="topN"><option>1</option><option>2</option><option>3</option></select></label>
+      <label>Ελάχιστη βεβαιότητα 2ης/3ης τιμής (%)
+        <input id="thr" type="number" min="0" max="100" value="15"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="inl" title="Το .bak δημιουργείται μία φορά και κρατά το αρχικό αρχείο"><input type="checkbox" id="bak"> Αντίγραφο ασφαλείας (.bak) πριν την εγγραφή</label>
+    </div>
+  </div>
+  <p class="note" style="margin:14px 0 0">Εγγραφή tags: MP3 (ID3v2.3/2.4) και FLAC. Τα υπόλοιπα formats (m4a, ogg, opus, wav…) αναλύονται και εξάγονται σε CSV/JSON. Το μοντέλο κατεβαίνει μία φορά (αποθηκεύεται στην cache του browser). Άδεια μοντέλου MAEST: CC BY-NC-SA 4.0 (μη εμπορική χρήση).</p>
+</details>
+
+<section class="card" id="ops">
+  <div class="oprow">
+    <div class="grp"><button id="run" class="btn pri" disabled><svg class="ic" viewBox="0 0 24 24"><use href="#i-play"/></svg>Ανάλυση</button><button id="stop" class="btn" disabled><svg class="ic" viewBox="0 0 24 24"><use href="#i-stop"/></svg>Διακοπή</button></div>
+    <div class="grp"><span class="cap">Μηχανές</span>
+      <label class="tg" title="Genre με Essentia MAEST (λήψη μοντέλου την πρώτη φορά)"><input type="checkbox" id="useML" checked><svg class="ic" viewBox="0 0 24 24"><use href="#i-tag"/></svg>Genre<small>MAEST</small></label>
+      <label class="tg" title="Τονικότητα με το CNN του OpenKeyScan (μοντέλο ~18 MB, αποθηκεύεται στο cache)"><input type="checkbox" id="useOK" checked><svg class="ic" viewBox="0 0 24 24"><use href="#i-key"/></svg>Key<small>OpenKeyScan</small></label>
+      <label class="tg" title="Τέμπο με το δίκτυο DeepRhythm (μοντέλο ~5 MB) και βελτίωση με autocorrelation"><input type="checkbox" id="useDR" checked><svg class="ic" viewBox="0 0 24 24"><use href="#i-tempo"/></svg>Τέμπο<small>DeepRhythm</small></label></div>
+    <div class="sp"></div>
+    <div class="grp"><span class="cap">Εργαλεία</span><button id="bCmp" class="btn" title="Σύγκριση των τσεκαρισμένων τραγουδιών (2–4)"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scale"/></svg>Σύγκριση</button>
+      <select id="plMode" title="Τρόπος ταξινόμησης playlist"><option value="harm">Harmonic mix</option><option value="energy">Ενέργεια ↑</option><option value="bpm">BPM ↑</option></select>
+      <button id="bPl" class="btn"><svg class="ic" viewBox="0 0 24 24"><use href="#i-list"/></svg>Playlist</button></div>
+    <div class="grp"><span class="cap">Αρχεία</span><button id="apply" class="btn ok" disabled><svg class="ic" viewBox="0 0 24 24"><use href="#i-save"/></svg>Εγγραφή στα tags</button>
+      <label class="tg" title="Γράφει και BPM/Key. MP3: TBPM, TKEY · FLAC: BPM, INITIALKEY"><input type="checkbox" id="wExtra">BPM + Key</label>
+      <button id="restore" class="btn" disabled title="Επαναφορά αρχικών αρχείων από τα .bak"><svg class="ic" viewBox="0 0 24 24"><use href="#i-undo"/></svg>Επαναφορά</button>
+      <button id="csv" class="btn" disabled><svg class="ic" viewBox="0 0 24 24"><use href="#i-download"/></svg>CSV</button><button id="json" class="btn" disabled><svg class="ic" viewBox="0 0 24 24"><use href="#i-download"/></svg>JSON</button></div>
+  </div>
+  <div class="bar" id="barwrap"><i id="pb"></i></div>
+  <div id="status"></div>
+</section>
+
+<details class="card" id="bulk">
+  <summary><svg class="ic" viewBox="0 0 24 24"><use href="#i-pen"/></svg> Μαζική επεξεργασία (εφαρμόζεται στα επιλεγμένα) <span id="bkCount"></span></summary>
+  <div class="tools">
+    <div class="tool"><h4>Ορισμός τιμής</h4>
+      <input id="bkVal" placeholder="π.χ. Electronic; Ambient">
+      <button class="btn sm" id="bkSet" type="button">Ορισμός σε επιλεγμένα</button></div>
+    <div class="tool"><h4>Εύρεση &amp; αντικατάσταση</h4>
+      <div class="row"><input id="bkFind" placeholder="Εύρεση" style="flex:1;min-width:100px"><input id="bkRepl" placeholder="Αντικατάσταση" style="flex:1;min-width:100px"></div>
+      <button class="btn sm" id="bkRep" type="button">Αντικατάσταση</button></div>
+    <div class="tool"><h4>Πίνακας αντιστοίχισης</h4>
+      <textarea id="mapTxt" rows="4" placeholder="Hip Hop -> Hip-Hop&#10;Folk, World, &amp; Country -> Folk&#10;# οι γραμμές με # αγνοούνται"></textarea>
+      <div class="row"><button class="btn sm" id="bkMap" type="button">Εφαρμογή στα επιλεγμένα</button>
+      <label class="inl"><input type="checkbox" id="autoMap"> Αυτόματα πριν την εγγραφή</label></div></div>
+  </div>
+</details>
+
+<section class="card" id="dtC" hidden></section>
+<section class="card" id="cmpC" hidden></section>
+<section class="card" id="plC" hidden></section>
+
+<section class="card">
+  <div class="tbar">
+    <div class="search"><input id="filter" placeholder="Φίλτρο στη διαδρομή…"></div>
+    <select id="sfilter" title="Φίλτρο κατάστασης">
+      <option value="all">Όλα</option>
+      <option value="pending">Σε αναμονή</option>
+      <option value="analyzed">Αναλυμένα (όχι γραμμένα)</option>
+      <option value="nogenre">Αναλυμένα χωρίς Genre</option>
+      <option value="changed">Με αλλαγή Genre</option>
+      <option value="written">Γραμμένα</option>
+      <option value="errors">Σφάλματα</option>
+    </select>
+    <button class="btn sm" id="selChanged" title="Επιλογή όσων η πρόταση διαφέρει από το τρέχον Genre">☑ Όσα αλλάζουν</button>
+    <button class="btn sm" id="selAll" title="Επιλογή όλων των ορατών γραμμών">☑ Όλα τα ορατά</button>
+    <button class="btn sm" id="selInv" title="Αντιστροφή επιλογής στις ορατές γραμμές">⇄ Αντιστροφή</button>
+    <button class="btn sm" id="selNone">☐ Καμία</button>
+    <span class="sep"></span>
+    <label class="inl" title="Επιλογή μόνο όσων η βεβαιότητα ξεπερνά το όριο"><span>Βεβαιότητα ≥</span><input type="range" id="confSl" min="0" max="100" value="50" style="width:110px"><b id="confV" style="min-width:36px">50%</b></label>
+    <button class="btn sm" id="selConf">Επιλογή <span id="confN"></span></button>
+    <div class="sp"></div>
+    <div class="chips" id="stats"></div>
+  </div>
+  <div class="hint">Επιλογή πολλών: <kbd>κλικ</kbd> σε γραμμή ή checkbox · <kbd>Shift</kbd>+κλικ για περιοχή · μετά χρησιμοποίησε τη «✏️ Μαζική επεξεργασία» ή «💾 Εγγραφή».</div>
+  <div class="tw">
+    <table>
+      <thead><tr>
+        <th style="width:34px"><input type="checkbox" id="all" title="Επιλογή όλων των ορατών"></th>
+        <th style="width:44px"></th>
+        <th data-k="path">Αρχείο <span class="ar"></span></th>
+        <th data-k="ext">Τύπος <span class="ar"></span></th>
+        <th data-k="current">Τρέχον Genre <span class="ar"></span></th>
+        <th data-k="sugg">Πρόταση MAEST (επεξεργάσιμη) <span class="ar"></span></th>
+        <th data-k="conf">Βεβαιότητα <span class="ar"></span></th>
+        <th>Top 3</th>
+        <th data-k="bpm">BPM <span class="ar"></span></th><th data-k="cam">Key (Camelot) <span class="ar"></span></th><th data-k="energy">Ενέργ. <span class="ar"></span></th><th data-k="dance">Χορευτ. <span class="ar"></span></th><th data-k="lufs">dB <span class="ar"></span></th><th data-k="dur">Διάρκεια <span class="ar"></span></th>
+        <th data-k="status">Κατάσταση <span class="ar"></span></th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+</section>
+
+<details class="card log"><summary><svg class="ic" viewBox="0 0 24 24"><use href="#i-log"/></svg> Αρχείο καταγραφής</summary><pre id="log"></pre></details>
+</main>
+<dialog id="dlg">
+  <h2>Έλεγχος πριν την εγγραφή</h2>
+  <p class="note" id="dlgS"></p>
+  <label class="inl"><input type="checkbox" id="dlgSkip" checked> Παράλειψη αρχείων χωρίς αλλαγή</label>
+  <div class="dtw"><table id="dlgTb"></table></div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px">
+    <button class="btn" id="dlgNo" type="button">Άκυρο</button>
+    <button class="btn ok" id="dlgYes" type="button">💾 Εγγραφή</button>
+  </div>
+</dialog>
+<div id="toasts"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const TF_URLS = [
+  'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1/dist/transformers.min.js',
+  'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1',
+  'https://unpkg.com/@huggingface/transformers@3.5.1/dist/transformers.min.js',
+  'https://esm.sh/@huggingface/transformers@3.5.1'
+];
+async function loadTF() {
+  const errs = [];
+  for (const u of TF_URLS) {
+    try { const m = await import(u); log('Φορτώθηκε η βιβλιοθήκη από ' + u); return m; }
+    catch (e) { errs.push(u + ' → ' + (e.message || e)); log('Αποτυχία: ' + u + ' → ' + (e.message || e)); }
+  }
+  throw new Error('Δεν φορτώθηκε η βιβλιοθήκη Transformers.js από κανένα CDN. Έλεγξε τη σύνδεση στο ίδιο, adblock/firewall ή αν ανοίγεις το αρχείο σε περιορισμένο περιβάλλον. Λεπτομέρειες στο «Αρχείο καταγραφής».');
+}
+const AUDIO_EXT = new Set(['mp3','flac','m4a','mp4','aac','ogg','oga','opus','wav','aif','aiff','wma']);
+const WRITABLE = new Set(['mp3','flac']);
+const SR = 16000, WIN = 30 * SR;
+
+let items = [], tf = null, classifier = null, loadedKey = '', busy = false, cancel = false, audioCtx = null, nid = 0;
+let sortKey = 'path', sortDir = 1;
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const log = m => { const l = $('#log'); l.textContent += new Date().toLocaleTimeString() + '  ' + m + '\n'; l.scrollTop = l.scrollHeight; };
+const setStatus = m => $('#status').textContent = m;
+const setBar = f => $('#pb').style.width = Math.max(0, Math.min(1, f)) * 100 + '%';
+function toast(msg, kind = '') {
+  const t = document.createElement('div'); t.className = 'toast ' + kind; t.textContent = msg;
+  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 4500);
+}
+
+/* ---------- Θέμα & αποθήκευση ρυθμίσεων ---------- */
+const LS = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+function setTheme(t) { document.documentElement.dataset.theme = t; $('#theme').textContent = t === 'dark' ? '🌙' : '☀️'; LS.set('mgt-theme', t); }
+setTheme(LS.get('mgt-theme') || 'dark');
+$('#theme').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+const SETTING_IDS = ['model','device','dtype','nwin','fmt','topN','thr','maxmb','skipEx','useCache','bak'];
+try {
+  const saved = JSON.parse(LS.get('mgt-settings') || '{}');
+  for (const id of SETTING_IDS) { const el = $('#' + id); if (saved[id] === undefined) continue; if (el.type === 'checkbox') el.checked = !!saved[id]; else el.value = saved[id]; }
+} catch {}
+SETTING_IDS.forEach(id => $('#' + id).addEventListener('change', () => {
+  const o = {}; for (const k of SETTING_IDS) { const el = $('#' + k); o[k] = el.type === 'checkbox' ? el.checked : el.value; }
+  LS.set('mgt-settings', JSON.stringify(o));
+}));
+
+/* ---------- ID3 ---------- */
+const synchsafe = (b, o) => ((b[o] & 127) << 21) | ((b[o+1] & 127) << 14) | ((b[o+2] & 127) << 7) | (b[o+3] & 127);
+const u32 = (b, o) => ((b[o] << 24) | (b[o+1] << 16) | (b[o+2] << 8) | b[o+3]) >>> 0;
+function putSize(b, o, n, ver) {
+  if (ver === 4) { b[o] = (n >> 21) & 127; b[o+1] = (n >> 14) & 127; b[o+2] = (n >> 7) & 127; b[o+3] = n & 127; }
+  else { b[o] = (n >>> 24) & 255; b[o+1] = (n >>> 16) & 255; b[o+2] = (n >>> 8) & 255; b[o+3] = n & 255; }
+}
+async function readID3(file) {
+  const h = new Uint8Array(await file.slice(0, 10).arrayBuffer());
+  if (h.length < 10 || h[0] !== 0x49 || h[1] !== 0x44 || h[2] !== 0x33) return null;
+  const size = synchsafe(h, 6), flags = h[5];
+  const end = 10 + size, total = end + ((flags & 0x10) ? 10 : 0);
+  const buf = new Uint8Array(await file.slice(0, total).arrayBuffer());
+  return { ver: h[3], flags, end, total, buf };
+}
+function parseFrames(t) {
+  const b = t.buf; let pos = 10;
+  if (t.flags & 0x40) pos += t.ver === 4 ? synchsafe(b, 10) : u32(b, 10) + 4;
+  const frames = [];
+  while (pos + 10 <= t.end) {
+    if (b[pos] === 0) break;
+    const id = String.fromCharCode(b[pos], b[pos+1], b[pos+2], b[pos+3]);
+    const sz = t.ver === 4 ? synchsafe(b, pos + 4) : u32(b, pos + 4);
+    if (!/^[A-Z0-9]{4}$/.test(id) || pos + 10 + sz > t.end) throw new Error('μη αναγνωρίσιμη δομή ID3');
+    frames.push({ id, raw: b.slice(pos, pos + 10 + sz) });
+    pos += 10 + sz;
+  }
+  for (let i = pos; i < t.end; i++) if (b[i] !== 0) throw new Error('μη αναγνωρίσιμη δομή ID3');
+  return frames;
+}
+function decodeTCON(d) {
+  let enc = d[0], b = d.subarray(1), label = 'iso-8859-1';
+  if (enc === 1) {
+    if (b[0] === 0xFE && b[1] === 0xFF) { label = 'utf-16be'; b = b.subarray(2); }
+    else if (b[0] === 0xFF && b[1] === 0xFE) { label = 'utf-16le'; b = b.subarray(2); }
+    else label = 'utf-16le';
+  } else if (enc === 2) label = 'utf-16be'; else if (enc === 3) label = 'utf-8';
+  let s = new TextDecoder(label).decode(b).split('\0').map(x => x.trim()).filter(Boolean).join('; ');
+  const m = s.match(/^\(?(\d{1,3})\)?$/); if (m) s = '#' + m[1];
+  return s;
+}
+function makeTCON(text, ver) {
+  let enc, body;
+  if (/^[\x00-\x7F]*$/.test(text)) { enc = 0; body = Uint8Array.from(text, c => c.charCodeAt(0)); }
+  else if (ver === 4) { enc = 3; body = new TextEncoder().encode(text); }
+  else {
+    enc = 1; body = new Uint8Array(2 + text.length * 2); body[0] = 0xFF; body[1] = 0xFE;
+    for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); body[2 + 2*i] = c & 255; body[3 + 2*i] = c >> 8; }
+  }
+  const f = new Uint8Array(11 + body.length);
+  f.set([0x54, 0x43, 0x4F, 0x4E], 0); putSize(f, 4, body.length + 1, ver);
+  f[10] = enc; f.set(body, 11);
+  return f;
+}
+async function id3WithGenre(file, text, extra = {}) {
+  const t = await readID3(file);
+  let ver = 3, frames = [], oldTotal = 0;
+  if (t) {
+    if (t.ver !== 3 && t.ver !== 4) throw new Error('ID3v2.' + t.ver + ' δεν υποστηρίζεται');
+    if (t.flags & 0x80) throw new Error('ID3 unsynchronisation δεν υποστηρίζεται');
+    ver = t.ver; frames = parseFrames(t); oldTotal = t.total;
+  }
+  const drop = new Set(Object.keys(extra)); if (text) drop.add('TCON');
+  const kept = frames.filter(f => !drop.has(f.id)).map(f => f.raw);
+  if (text) kept.push(makeTCON(text, ver));
+  for (const [id, v] of Object.entries(extra)) { const f = makeTCON(v, ver); f.set([...id].map(c => c.charCodeAt(0)), 0); kept.push(f); }
+  const PAD = 256, bodyLen = kept.reduce((a, f) => a + f.length, 0) + PAD;
+  const head = new Uint8Array(10); head.set([0x49, 0x44, 0x33, ver, 0, 0]);
+  putSize(head, 6, bodyLen, 4);
+  return new Blob([head, ...kept, new Uint8Array(PAD), file.slice(oldTotal)], { type: 'audio/mpeg' });
+}
+
+/* ---------- FLAC ---------- */
+async function readFlacBlocks(file) {
+  const sig = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  if (String.fromCharCode(...sig) !== 'fLaC') return null;
+  let pos = 4; const blocks = [];
+  for (;;) {
+    const h = new Uint8Array(await file.slice(pos, pos + 4).arrayBuffer());
+    if (h.length < 4) return null;
+    const last = !!(h[0] & 0x80), type = h[0] & 0x7f, len = (h[1] << 16) | (h[2] << 8) | h[3];
+    blocks.push({ type, len, start: pos });
+    pos += 4 + len;
+    if (last) break;
+  }
+  return { blocks, audioStart: pos };
+}
+function parseVorbis(d) {
+  const dv = new DataView(d.buffer, d.byteOffset, d.byteLength), dec = new TextDecoder();
+  let p = 0; const vl = dv.getUint32(p, true); p += 4;
+  const vendor = d.slice(p, p + vl); p += vl;
+  const n = dv.getUint32(p, true); p += 4; const comments = [];
+  for (let i = 0; i < n; i++) { const l = dv.getUint32(p, true); p += 4; comments.push(dec.decode(d.subarray(p, p + l))); p += l; }
+  return { vendor, comments };
+}
+function buildVorbis(vendor, comments) {
+  const enc = new TextEncoder(), cs = comments.map(c => enc.encode(c));
+  const out = new Uint8Array(8 + vendor.length + cs.reduce((a, c) => a + 4 + c.length, 0));
+  const dv = new DataView(out.buffer); let p = 0;
+  dv.setUint32(p, vendor.length, true); p += 4; out.set(vendor, p); p += vendor.length;
+  dv.setUint32(p, cs.length, true); p += 4;
+  for (const c of cs) { dv.setUint32(p, c.length, true); p += 4; out.set(c, p); p += c.length; }
+  return out;
+}
+async function flacGenre(file) {
+  const info = await readFlacBlocks(file); if (!info) return null;
+  const vc = info.blocks.find(b => b.type === 4); if (!vc) return '';
+  const d = new Uint8Array(await file.slice(vc.start + 4, vc.start + 4 + vc.len).arrayBuffer());
+  return parseVorbis(d).comments.filter(c => /^genre=/i.test(c)).map(c => c.slice(6)).join('; ');
+}
+async function flacWithGenre(file, text, extra = {}) {
+  const info = await readFlacBlocks(file); if (!info) throw new Error('μη έγκυρο FLAC');
+  let vendor = new Uint8Array(0), comments = [];
+  const vc = info.blocks.find(b => b.type === 4);
+  if (vc) { const d = new Uint8Array(await file.slice(vc.start + 4, vc.start + 4 + vc.len).arrayBuffer()); ({ vendor, comments } = parseVorbis(d)); }
+  comments = comments.filter(c => !(text && /^genre=/i.test(c)) && !Object.keys(extra).some(k => c.toUpperCase().startsWith(k + '=')));
+  if (text) comments.push('GENRE=' + text); for (const [k, v] of Object.entries(extra)) comments.push(k + '=' + v);
+  const vdata = buildVorbis(vendor, comments);
+  const out = []; let placed = false;
+  for (const b of info.blocks) {
+    if (b.type === 1) continue;
+    if (b.type === 4) { out.push({ type: 4, len: vdata.length, data: vdata }); placed = true; }
+    else out.push({ type: b.type, len: b.len, data: file.slice(b.start + 4, b.start + 4 + b.len) });
+  }
+  if (!placed) out.push({ type: 4, len: vdata.length, data: vdata });
+  out.push({ type: 1, len: 1024, data: new Uint8Array(1024) });
+  const parts = [new TextEncoder().encode('fLaC')];
+  out.forEach((o, i) => {
+    const h = new Uint8Array(4); h[0] = (i === out.length - 1 ? 0x80 : 0) | o.type;
+    h[1] = (o.len >> 16) & 255; h[2] = (o.len >> 8) & 255; h[3] = o.len & 255; parts.push(h, o.data);
+  });
+  parts.push(file.slice(info.audioStart));
+  return new Blob(parts, { type: 'audio/flac' });
+}
+
+/* ---------- Αρχεία ---------- */
+const getFile = it => it.native ? nativeFile(it) : it.handle ? it.handle.getFile() : Promise.resolve(it.file);
+function newItem(path, name, ext, handle, parent, file) {
+  return { id: ++nid, path, name, ext, handle, parent, file, current: '', top: null, sugg: '', edited: false, checked: false, written: false, status: 'σε αναμονή' };
+}
+async function walk(dir, path) {
+  for await (const [name, h] of dir.entries()) {
+    if (h.kind === 'directory') { if (!name.startsWith('.')) await walk(h, path + '/' + name); }
+    else { const ext = name.split('.').pop().toLowerCase(); if (AUDIO_EXT.has(ext)) items.push(newItem(path + '/' + name, name, ext, h, dir, null)); }
+  }
+}
+async function readCurrent(it) {
+  if (it.native) return;   // το genre διαβάστηκε ήδη από τη native σάρωση
+  const f = await getFile(it);
+  if (it.ext === 'mp3') {
+    const t = await readID3(f); if (!t) { it.current = ''; return; }
+    if (t.ver !== 3 && t.ver !== 4) { it.current = '(ID3v2.' + t.ver + ')'; return; }
+    const fr = parseFrames(t).find(x => x.id === 'TCON');
+    it.current = fr ? decodeTCON(fr.raw.subarray(10)) : '';
+  } else if (it.ext === 'flac') it.current = (await flacGenre(f)) || '';
+  else it.current = '—';
+}
+async function afterScan() {
+  items.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
+  renderAll();
+  for (let i = 0; i < items.length; i++) {
+    try { await readCurrent(items[i]); } catch (e) { items[i].current = '?'; }
+    if (i % 40 === 0) { setStatus(`Ανάγνωση tags… ${i}/${items.length}`); setBar(i / items.length); }
+  }
+  renderAll(); setBar(0);
+  setStatus(`Βρέθηκαν ${items.length} αρχεία ήχου.`);
+  $('#run').disabled = !items.length; $('#csv').disabled = $('#json').disabled = !items.length; $('#clear').disabled = !items.length;
+  $('#restore').disabled = !items.some(i => i.handle || i.native);
+  if (items.length) { $('#settings').open = false; toast(`Βρέθηκαν ${items.length} αρχεία ήχου`, 'ok'); }
+  else toast('Δεν βρέθηκαν αρχεία ήχου', 'wa');
+}
+async function loadDir(dir) {
+  items = []; stopPlayer(); $('#folderName').textContent = '📁 ' + dir.name; setStatus('Σάρωση φακέλου…');
+  await walk(dir, dir.name); await afterScan();
+}
+async function pickFolder() {
+  if (TAURI) return pickFolderNative();
+  try { const dir = await window.showDirectoryPicker({ mode: 'readwrite' }); await loadDir(dir); }
+  catch (e) { if (e.name !== 'AbortError') { setStatus('Σφάλμα: ' + e.message); log(e.stack || e); } }
+}
+async function pickFallback(ev) {
+  items = []; stopPlayer();
+  for (const f of ev.target.files) {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (AUDIO_EXT.has(ext)) items.push(newItem(f.webkitRelativePath || f.name, f.name, ext, null, null, f));
+  }
+  $('#folderName').textContent = '📁 μόνο ανάγνωση'; await afterScan();
+}
+$('#clear').onclick = () => {
+  if (busy) return;
+  items = []; stopPlayer(); $('#folderName').textContent = ''; setStatus(''); renderAll();
+  $('#run').disabled = $('#csv').disabled = $('#json').disabled = $('#clear').disabled = $('#restore').disabled = true;
+};
+
+/* Drag & drop φακέλου */
+const dz = $('#drop');
+['dragenter', 'dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('over'); }));
+['dragleave', 'drop'].forEach(e => dz.addEventListener(e, () => dz.classList.remove('over')));
+dz.addEventListener('drop', async ev => {
+  ev.preventDefault(); if (busy) return;
+  const di = ev.dataTransfer.items && ev.dataTransfer.items[0];
+  if (di && di.getAsFileSystemHandle) {
+    try {
+      const h = await di.getAsFileSystemHandle();
+      if (h && h.kind === 'directory') {
+        try { await h.requestPermission({ mode: 'readwrite' }); } catch {}
+        await loadDir(h); return;
+      }
+    } catch (e) { log(e.stack || e); }
+  }
+  toast('Σύρε έναν φάκελο (απαιτεί Chrome ή Edge) ή χρησιμοποίησε το κουμπί επιλογής.', 'wa');
+});
+
+/* ---------- Προεπισκόπηση ήχου ---------- */
+const player = new Audio(); let playingId = null, playUrl = null;
+function stopPlayer() {
+  player.pause(); if (playUrl) { URL.revokeObjectURL(playUrl); playUrl = null; }
+  playingId = null; document.querySelectorAll('.pl').forEach(b => { b.classList.remove('on'); b.textContent = '▶'; });
+}
+player.addEventListener('ended', stopPlayer);
+async function togglePlay(it) {
+  if (playingId === it.id) { stopPlayer(); return; }
+  stopPlayer();
+  try {
+    const f = await getFile(it); playUrl = URL.createObjectURL(f); player.src = playUrl; await player.play(); playingId = it.id;
+    const b = document.querySelector(`tr[data-id="${it.id}"] .pl`); if (b) { b.classList.add('on'); b.textContent = '⏸'; }
+  } catch (e) { stopPlayer(); toast('Δεν μπορεί να αναπαραχθεί: ' + (e.message || e), 'er'); }
+}
+
+/* ---------- Πίνακας ---------- */
+const isErr = it => it.status.startsWith('✖');
+const changed = it => (!!it.top || it.edited) && !!it.sugg.trim() && it.sugg.trim() !== it.current;
+function badgeClass(it) {
+  const s = it.status;
+  return s.startsWith('✔') ? 'ok' : s.startsWith('✖') ? 'er' : s.startsWith('⚠') ? 'wa' : (s === 'αναλύθηκε' || s.startsWith('↩')) ? 'in' : '';
+}
+function rowHTML(it) {
+  const dir = it.path.slice(0, it.path.length - it.name.length).replace(/\/$/, '');
+  const conf = it.top ? Math.round(it.top[0].score * 100) : null;
+  const mc = conf === null ? '' : conf >= 50 ? 'hi' : conf >= 25 ? 'mid' : 'lo';
+  const t3 = it.top ? it.top.slice(0, 3).map(t => `<span><b>${esc(t.label.replace('---', ' › '))}</b> ${Math.round(t.score * 100)}%</span>`).join('') : '';
+  const playing = playingId === it.id;
+  return `<td><input type="checkbox" class="ck" ${it.checked ? 'checked' : ''}></td>
+  <td><button class="pl ${playing ? 'on' : ''}" title="Προεπισκόπηση">${playing ? '⏸' : '▶'}</button></td>
+  <td class="f" title="${esc(it.path)}"><div class="nm">${esc(it.name)}</div><div class="dr">${esc(dir)}</div></td>
+  <td><span class="ext ${WRITABLE.has(it.ext) ? 'w' : ''}" title="${WRITABLE.has(it.ext) ? 'Υποστηρίζεται εγγραφή' : 'Μόνο ανάλυση/εξαγωγή'}">${esc(it.ext)}</span></td>
+  <td class="cur" title="${esc(it.current)}">${it.current ? esc(it.current) : '<span class="dim">(κενό)</span>'}</td>
+  <td><input class="sg ${changed(it) ? 'chg' : ''}" value="${esc(it.sugg)}" placeholder="${it.top ? '' : 'χειροκίνητη τιμή'}"></td>
+  <td>${conf === null ? '' : `<div class="meter ${mc}"><i style="width:${conf}%"></i><span>${conf}%</span></div>`}</td>
+  <td><div class="t3">${t3}</div></td>
+  ${dspCells(it)}
+  <td><span class="badge ${badgeClass(it)}" title="${esc(it.status)}">${esc(it.status)}</span></td>`;
+}
+function matchStatus(it, f) {
+  switch (f) {
+    case 'pending': return !(it.top || it.an) && !isErr(it);
+    case 'analyzed': return !!it.top && !it.written;
+    case 'nogenre': return !!it.top && !it.current;
+    case 'changed': return changed(it);
+    case 'written': return it.written;
+    case 'errors': return isErr(it);
+    default: return true;
+  }
+}
+function sortVal(it, k) {
+  switch (k) {
+    case 'bpm': case 'energy': case 'dance': case 'lufs': case 'dur': return it.an ? it.an[k] : -1;
+    case 'cam': return it.an ? parseInt(it.an.cam) * 2 + (it.an.cam.endsWith('B') ? 1 : 0) : -1;
+    case 'conf': return it.top ? it.top[0].score : -1;
+    case 'sugg': return it.sugg.toLowerCase();
+    case 'current': return it.current.toLowerCase();
+    case 'status': return it.status.toLowerCase();
+    case 'ext': return it.ext;
+    default: return it.path.toLowerCase();
+  }
+}
+function filtered() {
+  const q = $('#filter').value.toLowerCase(), sf = $('#sfilter').value;
+  return items.filter(it => (!q || it.path.toLowerCase().includes(q)) && matchStatus(it, sf));
+}
+function visible() {
+  const v = filtered();
+  v.sort((a, b) => {
+    const x = sortVal(a, sortKey), y = sortVal(b, sortKey);
+    const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true });
+    return c * sortDir;
+  });
+  return v;
+}
+function renderAll() {
+  const v = visible();
+  $('#tb').innerHTML = v.length
+    ? v.map(it => `<tr data-id="${it.id}" class="${it.checked ? 'sel' : ''}">${rowHTML(it)}</tr>`).join('')
+    : `<tr class="empty"><td colspan="15"><span class="em">${items.length ? '🔍' : '🎧'}</span>${items.length ? 'Κανένα αρχείο δεν ταιριάζει με τα φίλτρα.' : 'Δεν έχει επιλεγεί φάκελος ακόμα.'}</td></tr>`;
+  document.querySelectorAll('th[data-k]').forEach(th => th.querySelector('.ar').textContent = th.dataset.k === sortKey ? (sortDir > 0 ? '▲' : '▼') : '');
+  stats();
+}
+function updateRow(it) {
+  const tr = $(`#tb tr[data-id="${it.id}"]`);
+  if (tr) { tr.innerHTML = rowHTML(it); tr.classList.toggle('sel', it.checked); }
+}
+function stats() {
+  const an = items.filter(i => i.top || i.an).length, ck = items.filter(i => i.checked).length,
+        wr = items.filter(i => i.written).length, er = items.filter(isErr).length;
+  $('#stats').innerHTML = `<span class="chip">Αρχεία <b>${items.length}</b></span><span class="chip">Αναλυμένα <b>${an}</b></span>
+    <span class="chip ac">Επιλεγμένα <b>${ck}</b></span><span class="chip ok">Γραμμένα <b>${wr}</b></span>${er ? `<span class="chip er">Σφάλματα <b>${er}</b></span>` : ''}`;
+  $('#apply').disabled = busy || !ck;
+  $('#apply').textContent = ck ? `💾 Εγγραφή στα tags (${ck})` : '💾 Εγγραφή στα tags';
+  $('#bkCount').textContent = ck ? `· ${ck} επιλεγμένα` : '';
+  ['bkSet', 'bkRep', 'bkMap'].forEach(id => $('#' + id).disabled = busy || !ck);
+  const vis = filtered(), vc = vis.filter(i => i.checked).length, al = $('#all');
+  al.checked = vis.length > 0 && vc === vis.length; al.indeterminate = vc > 0 && vc < vis.length;
+  confCount();
+}
+const itemOf = el => items.find(i => i.id == el.closest('tr').dataset.id);
+/* Πολλαπλή επιλογή: κλικ σε γραμμή/checkbox, Shift+κλικ για περιοχή */
+let anchorId = null;
+function setChecked(it, v) {
+  it.checked = v;
+  const tr = $(`#tb tr[data-id="${it.id}"]`);
+  if (tr) { tr.classList.toggle('sel', v); const c = tr.querySelector('.ck'); if (c) c.checked = v; }
+}
+function toggleRow(it, shift) {
+  const val = !it.checked;
+  if (shift && anchorId !== null) {
+    const v = visible(), a = v.findIndex(x => x.id === anchorId), b = v.findIndex(x => x.id === it.id);
+    if (a >= 0 && b >= 0) { for (let i = Math.min(a, b); i <= Math.max(a, b); i++) setChecked(v[i], val); anchorId = it.id; stats(); return; }
+  }
+  setChecked(it, val); anchorId = it.id; stats();
+}
+$('#tb').addEventListener('mousedown', e => { if (e.shiftKey && !e.target.closest('input')) e.preventDefault(); }); // να μην επιλέγεται κείμενο
+$('#tb').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+  if (e.target.closest('.pl')) return;                    // το play έχει δικό του handler
+  if (e.target.classList.contains('ck')) { toggleRow(itemOf(e.target), e.shiftKey); return; }
+  if (e.target.closest('input,button,select,textarea')) return;
+  if (window.getSelection && String(window.getSelection()).length) return; // ο χρήστης επιλέγει κείμενο
+  toggleRow(itemOf(e.target), e.shiftKey);
+});
+$('#tb').addEventListener('input', e => {
+  if (e.target.classList.contains('sg')) { const it = itemOf(e.target); it.sugg = e.target.value; it.edited = true; e.target.classList.toggle('chg', changed(it)); }
+});
+$('#tb').addEventListener('click', e => { const b = e.target.closest('.pl'); if (b) togglePlay(itemOf(b)); });
+let ft; $('#filter').addEventListener('input', () => { clearTimeout(ft); ft = setTimeout(renderAll, 150); });
+$('#sfilter').addEventListener('change', renderAll);
+document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => {
+  if (sortKey === th.dataset.k) sortDir = -sortDir; else { sortKey = th.dataset.k; sortDir = 1; }
+  renderAll();
+}));
+$('#all').addEventListener('change', e => { filtered().forEach(it => it.checked = e.target.checked); renderAll(); });
+$('#selAll').onclick = () => { filtered().forEach(it => it.checked = true); renderAll(); };
+$('#selInv').onclick = () => { filtered().forEach(it => it.checked = !it.checked); renderAll(); };
+$('#selNone').onclick = () => { items.forEach(it => it.checked = false); anchorId = null; renderAll(); };
+$('#selChanged').onclick = () => { items.forEach(it => it.checked = changed(it)); renderAll(); };
+
+/* ---------- Επιλογή βάσει βεβαιότητας ---------- */
+function confCount() {
+  const t = +$('#confSl').value;
+  $('#confV').textContent = t + '%';
+  $('#confN').textContent = '(' + items.filter(i => i.top && i.top[0].score * 100 >= t).length + ')';
+}
+$('#confSl').addEventListener('input', confCount);
+$('#selConf').onclick = () => { const t = +$('#confSl').value; items.forEach(i => i.checked = !!i.top && i.top[0].score * 100 >= t); renderAll(); };
+
+/* ---------- Μαζική επεξεργασία επιλεγμένων ---------- */
+function bulk(fn, label) {
+  const rows = items.filter(i => i.checked);
+  if (!rows.length) { toast('Δεν έχεις επιλέξει αρχεία', 'wa'); return; }
+  let n = 0;
+  rows.forEach(it => { const nv = fn(it.sugg); if (nv !== null && nv !== it.sugg) { it.sugg = nv; it.edited = true; n++; } });
+  renderAll();
+  toast(`${label}: άλλαξε σε ${n} από ${rows.length} επιλεγμένα`, n ? 'ok' : 'wa');
+}
+$('#bkSet').onclick = () => {
+  const v = $('#bkVal').value.trim();
+  if (!v) { toast('Γράψε την τιμή που θα οριστεί', 'wa'); return; }
+  bulk(() => v, 'Ορισμός');
+};
+$('#bkVal').addEventListener('keydown', e => { if (e.key === 'Enter') $('#bkSet').click(); });
+$('#bkRep').onclick = () => {
+  const f = $('#bkFind').value, r = $('#bkRepl').value;
+  if (!f) { toast('Γράψε τι θα αναζητηθεί', 'wa'); return; }
+  const re = new RegExp(f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  bulk(s => s ? s.replace(re, () => r).replace(/\s*;\s*;\s*/g, '; ').replace(/^[;\s]+|[;\s]+$/g, '') : null, 'Αντικατάσταση');
+};
+function mapFn() {
+  const m = new Map();
+  $('#mapTxt').value.split(/\r?\n/).forEach(l => {
+    l = l.trim(); if (!l || l.startsWith('#')) return;
+    const i = l.indexOf('->'); if (i < 1) return;
+    const a = l.slice(0, i).trim().toLowerCase(), b = l.slice(i + 2).trim();
+    if (a) m.set(a, b);
+  });
+  if (!m.size) return null;
+  return s => {
+    if (!s) return null;
+    const out = [];
+    s.split(';').forEach(p => { p = p.trim(); const v = m.has(p.toLowerCase()) ? m.get(p.toLowerCase()) : p; if (v && !out.includes(v)) out.push(v); });
+    return out.join('; ');
+  };
+}
+$('#bkMap').onclick = () => {
+  const fn = mapFn(); if (!fn) { toast('Ο πίνακας αντιστοίχισης είναι κενός (μορφή: Από -> Σε)', 'wa'); return; }
+  bulk(fn, 'Αντιστοίχιση');
+};
+
+/* ---------- Πρόταση tag από τα αποτελέσματα του MAEST ---------- */
+function buildTag(top) {
+  const N = +$('#topN').value, thr = (+$('#thr').value || 0) / 100, fmt = $('#fmt').value, picks = [];
+  for (const t of top) {
+    if (picks.length >= N) break;
+    if (picks.length > 0 && t.score < thr) break;
+    const [g, s] = t.label.split('---');
+    const v = fmt === 'genre' ? g : fmt === 'style' ? (s || g) : (s ? g + ' - ' + s : g);
+    if (!picks.includes(v)) picks.push(v);
+  }
+  return picks.join('; ');
+}
+['fmt', 'topN', 'thr'].forEach(id => $('#' + id).addEventListener('change', () => {
+  items.forEach(it => { if (it.top && !it.edited) it.sugg = buildTag(it.top); });
+  renderAll();
+}));
+
+/* ---------- MAEST feature extractor (αντίγραφο του feature_extraction_maest.py) ---------- */
+const MAEST = { sr: 16000, nfft: 512, hop: 256, mels: 96, maxLen: 1876, mean: 2.06755686098554, std: 1.268292820667291 };
+const maestHann = new Float64Array(MAEST.nfft).map((_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / MAEST.nfft)); // periodic hann
+const slHz2Mel = f => f < 1000 ? 3 * f / 200 : 15 + Math.log(f / 1000) * (27 / Math.log(6.4));
+const slMel2Hz = m => m < 15 ? 200 * m / 3 : 1000 * Math.exp((27 / Math.log(6.4)) * (m - 15));
+const maestFB = (() => {
+  const nb = MAEST.nfft / 2 + 1, nm = MAEST.mels;
+  const m0 = slHz2Mel(0), m1 = slHz2Mel(MAEST.sr / 2);
+  const ff = Array.from({ length: nm + 2 }, (_, i) => slMel2Hz(m0 + (m1 - m0) * i / (nm + 1)));
+  const fb = Array.from({ length: nm }, () => new Float64Array(nb));
+  for (let m = 0; m < nm; m++) {
+    const enorm = 2 / (ff[m + 2] - ff[m]);
+    for (let k = 0; k < nb; k++) {
+      const f = k * (MAEST.sr / 2) / (nb - 1);
+      const down = -(ff[m] - f) / (ff[m + 1] - ff[m]);
+      const up = (ff[m + 2] - f) / (ff[m + 2] - ff[m + 1]);
+      fb[m][k] = Math.max(0, Math.min(down, up)) * enorm;
+    }
+  }
+  return fb;
+})();
+function fftInPlace(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let j = 0; j < len / 2; j++) {
+        const a = i + j, b = a + len / 2;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+      }
+    }
+  }
+}
+function maestFeatures(audio) {
+  const { nfft, hop, mels, maxLen, mean, std } = MAEST, half = nfft / 2, nb = half + 1;
+  const nFrames = 1 + Math.floor(audio.length / hop);              // center=True, zero padding
+  const out = new Float32Array(maxLen * mels);                      // [time, mel]
+  const padVal = (0 - mean) / (std * 2);                            // τα κενά frames = 0 πριν το normalize
+  const re = new Float64Array(nfft), im = new Float64Array(nfft);
+  const used = Math.min(nFrames, maxLen);
+  for (let t = 0; t < used; t++) {
+    const start = t * hop - half;
+    for (let i = 0; i < nfft; i++) {
+      const idx = start + i;
+      re[i] = (idx >= 0 && idx < audio.length ? audio[idx] : 0) * maestHann[i]; im[i] = 0;
+    }
+    fftInPlace(re, im);
+    const pw = new Float64Array(nb);
+    for (let k = 0; k < nb; k++) pw[k] = re[k] * re[k] + im[k] * im[k];
+    for (let m = 0; m < mels; m++) {
+      const f = maestFB[m]; let s = 0;
+      for (let k = 0; k < nb; k++) s += f[k] * pw[k];
+      s = Math.max(s, 1e-30);
+      out[t * mels + m] = (Math.log10(1 + s * 10000) - mean) / (std * 2);
+    }
+  }
+  for (let t = used; t < maxLen; t++) out.fill(padVal, t * mels, (t + 1) * mels);
+  return out;
+}
+
+/* ---------- Μοντέλο & ήχος ---------- */
+async function ensureModel() {
+  const model = $('#model').value.trim(), device = $('#device').value, dtype = $('#dtype').value;
+  const key = [model, device, dtype].join('|');
+  if (classifier && key === loadedKey) return;
+  setStatus('Φόρτωση βιβλιοθήκης Transformers.js…');
+  tf = tf || await loadTF();
+  tf.env.allowLocalModels = false;
+  // Από file:// οι workers από CDN μπλοκάρονται (cross-origin) → χωρίς proxy worker και με 1 thread
+  const wasmEnv = tf.env.backends.onnx.wasm;
+  wasmEnv.proxy = false;
+  wasmEnv.numThreads = 1;
+  const opts = {
+    device,
+    progress_callback: p => {
+      if (p.status === 'progress') { setStatus(`Λήψη μοντέλου: ${p.file} ${Math.round(p.progress)}%`); setBar(p.progress / 100); }
+      else if (p.status === 'ready') setStatus('Το μοντέλο είναι έτοιμο.');
+    }
+  };
+  if (dtype !== 'auto') opts.dtype = dtype;
+  log('Φόρτωση μοντέλου ' + key);
+  // Το repo Xenova/... δεν περιέχει preprocessor_config.json, οπότε δεν υπάρχει processor για το pipeline().
+  // Φορτώνουμε μόνο το μοντέλο και υπολογίζουμε μόνοι μας το mel-spectrogram του MAEST.
+  const mdl = await tf.AutoModelForAudioClassification.from_pretrained(model, opts);
+  const id2label = mdl.config.id2label || {};
+  classifier = async (audio, { top_k = 10 } = {}) => {
+    const feats = maestFeatures(audio);
+    const input = new tf.Tensor('float32', feats, [1, MAEST.maxLen, MAEST.mels]);
+    const res = await mdl({ input_values: input });
+    const logits = res.logits.data;
+    let mx = -Infinity; for (const v of logits) if (v > mx) mx = v;
+    let sum = 0; const ex = new Float64Array(logits.length);
+    for (let i = 0; i < logits.length; i++) { ex[i] = Math.exp(logits[i] - mx); sum += ex[i]; }
+    const out = [];
+    for (let i = 0; i < logits.length; i++) out.push({ label: id2label[i] ?? String(i), score: ex[i] / sum });
+    out.sort((a, b) => b.score - a.score);
+    return out.slice(0, top_k);
+  };
+  loadedKey = key; setBar(0);
+}
+async function decodeMono16k(file) {
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SR });
+  let buf = await audioCtx.decodeAudioData(await file.arrayBuffer());
+  if (buf.sampleRate !== SR) {
+    const off = new OfflineAudioContext(1, Math.ceil(buf.duration * SR), SR);
+    const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+    buf = await off.startRendering();
+  }
+  const n = buf.length, out = new Float32Array(n), ch = buf.numberOfChannels;
+  for (let c = 0; c < ch; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) out[i] += d[i] / ch; }
+  return out;
+}
+function segments(a, n) {
+  if (a.length <= WIN) return [a];
+  const fr = n === 1 ? [0.5] : [0.2, 0.5, 0.8];
+  return fr.map(f => { const s = Math.floor(Math.min(a.length - WIN, Math.max(0, f * a.length - WIN / 2))); return a.subarray(s, s + WIN); });
+}
+/* ---------- Cache αποτελεσμάτων (IndexedDB) ---------- */
+let idbP = null, cacheHits = 0;
+const idb = () => idbP || (idbP = new Promise((ok, no) => {
+  const r = indexedDB.open('mgt-cache', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('r');
+  r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+}));
+const idbReq = (mode, fn) => idb().then(db => new Promise((ok, no) => {
+  const tx = db.transaction('r', mode), q = fn(tx.objectStore('r'));
+  tx.oncomplete = () => ok(q && q.result); tx.onerror = tx.onabort = () => no(tx.error);
+}));
+const cacheKey = (it, f) => [it.path, f.size, f.lastModified, $('#model').value.trim(), $('#nwin').value].join('|');
+async function cacheGet(k) { try { return (await idbReq('readonly', s => s.get(k))) || null; } catch { return null; } }
+async function cachePut(k, v) { try { await idbReq('readwrite', s => s.put(v, k)); } catch (e) { log('Cache: ' + (e.message || e)); } }
+$('#clearCache').onclick = async () => {
+  try { await idbReq('readwrite', s => s.clear()); toast('Η cache καθαρίστηκε', 'ok'); log('Καθαρισμός cache'); }
+  catch (e) { toast('Αδυναμία καθαρισμού cache: ' + (e.message || e), 'er'); }
+};
+
+async function analyzeItemJS(it) {
+  const file = await getFile(it);
+  if (file.size > (+$('#maxmb').value || 200) * 1048576) throw new Error('πολύ μεγάλο αρχείο');
+  const useCache = $('#useCache').checked, ck = cacheKey(it, file), ml = $('#useML').checked,
+    skipML = $('#skipEx').checked && it.current && it.current !== '—' && it.current !== '?';
+  let audio = null;
+  if (ml && !it.top && !skipML) {
+    const hit = useCache ? await cacheGet(ck) : null;
+    if (hit) { it.top = hit; cacheHits++; }
+    else {
+      audio = await decodeMono16k(file);
+      const segs = segments(audio, +$('#nwin').value), acc = new Map();
+      for (const s of segs) {
+        const out = await classifier(s, { top_k: 400 });
+        for (const o of out) acc.set(o.label, (acc.get(o.label) || 0) + o.score / segs.length);
+      }
+      it.top = [...acc].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([label, score]) => ({ label, score }));
+      if (useCache) await cachePut(ck, it.top);
+    }
+  }
+  if (!it.an) {
+    const dk = ck + '|dsp', hit = useCache ? await cacheGet(dk) : null;
+    if (hit) it.an = hit;
+    else { audio = audio || await decodeMono16k(file); it.an = SA.analyze(saMono(audio)); if (useCache) await cachePut(dk, it.an); }
+  }
+  const wK = $('#useOK').checked && !!okSess, wT = $('#useDR').checked && !!drSess;
+  if (wK || wT) {
+    const kk = ck + '|ok2', r = it.ok || (useCache ? await cacheGet(kk) : null) || {};
+    const nK = wK && r.cls == null, nT = wT && r.bpm == null;
+    if (nK || nT) {
+      try {
+        if (TAURI) {
+          const n = await nativeAnalyze(file, { key: nK, tempo: nT });
+          if (n.key) { r.cls = n.key.cls; r.conf = n.key.conf; }
+          if (n.tempo) { r.bpm = n.tempo.bpm; r.bconf = n.tempo.conf; }
+        } else {
+          const y = await decodeMono44k(file);
+          if (nK) { const k = await okKey(y); r.cls = k.cls; r.conf = k.conf; }
+          if (nT) { const t = await drTempo(y); r.bpm = t.bpm; r.bconf = t.conf; }
+        }
+        if (useCache) await cachePut(kk, r);
+      } catch (e) { log(it.path + ': OpenKeyScan/DeepRhythm: ' + (e.message || e)); }
+    }
+    it.ok = r; applyOK(it);
+  }
+  if (it.top && !it.edited) it.sugg = buildTag(it.top);
+  it.checked = !!it.sugg;
+}
+
+/* ---------- Ροή ανάλυσης ---------- */
+function setBusy(b) {
+  busy = b; $('#run').disabled = b || !items.length; $('#stop').disabled = !b;
+  $('#pick').disabled = $('#pickRO').disabled = b; $('#clear').disabled = b || !items.length;
+  $('#restore').disabled = b || !items.some(i => i.handle || i.native);
+  $('#barwrap').classList.toggle('busy', b); stats();
+}
+async function run() {
+  if (busy) return;
+  setBusy(true); cancel = false; cacheHits = 0;
+  try {
+    if ($('#useML').checked && !(TAURI && nativeGenre)) await ensureModel();
+    if ($('#useDR').checked) { try { await ensureDR(); } catch (e) { log('DeepRhythm: ' + (e.stack || e)); toast('DeepRhythm: ' + (e.message || e), 'er'); $('#useDR').checked = false; } }
+    if ($('#useOK').checked) { try { await ensureOK(); } catch (e) { log('OpenKeyScan: ' + (e.stack || e)); toast('OpenKeyScan: ' + (e.message || e), 'er'); $('#useOK').checked = false; } }
+    const skip = $('#skipEx').checked;
+    const ml = $('#useML').checked, wK = $('#useOK').checked && !!okSess, wT = $('#useDR').checked && !!drSess, sk = it => skip && it.current && it.current !== '—' && it.current !== '?', todo = items.filter(it => (ml && !it.top && !sk(it)) || !it.an || (wK && !(it.ok && it.ok.cls != null)) || (wT && !(it.ok && it.ok.bpm != null)));
+    if (!todo.length) { setStatus('Δεν υπάρχουν αρχεία για ανάλυση.'); toast('Δεν υπάρχουν αρχεία για ανάλυση', 'wa'); }
+    const t0 = Date.now();
+    for (let i = 0; i < todo.length && !cancel; i++) {
+      const it = todo[i];
+      setStatus(`Ανάλυση ${i + 1}/${todo.length}: ${it.name}` + (i ? ` — υπόλοιπος χρόνος ~${Math.max(1, Math.round((Date.now() - t0) / i * (todo.length - i) / 60000))} λεπτά` : ''));
+      setBar(i / todo.length);
+      try { await analyzeItem(it); it.status = 'αναλύθηκε'; }
+      catch (e) { it.status = '✖ ' + (e.message || e); log(it.path + ': ' + (e.stack || e)); }
+      updateRow(it); stats();
+    }
+    if (cancel) setStatus('Διακόπηκε.');
+    else if (todo.length) { setStatus('Η ανάλυση ολοκληρώθηκε' + (cacheHits ? ` (${cacheHits} από cache)` : '') + '. Έλεγξε τις προτάσεις και πάτα «Εγγραφή στα tags».'); toast('Η ανάλυση ολοκληρώθηκε', 'ok'); }
+  } catch (e) {
+    setStatus('Σφάλμα: ' + (e.message || e)); log(e.stack || e); toast('Σφάλμα: ' + (e.message || e), 'er');
+  }
+  setBar(0); setBusy(false); renderAll();
+}
+
+/* ---------- Εγγραφή ---------- */
+async function writeGenre(it, text) {
+  if (TAURI && it.native) {
+    if (!WRITABLE.has(it.ext)) throw new Error('εγγραφή tag δεν υποστηρίζεται για .' + it.ext);
+    const ex = $('#wExtra').checked && it.an;
+    const g = await TAURI.invoke('write_tags', { path: it.native, genre: text || null, bpm: ex ? it.an.bpm : null, key: ex ? saKey(it.an) : null, backup: $('#bak').checked });
+    it.current = g;
+    if (text && g !== text) throw new Error('η επαλήθευση απέτυχε (διάβασε: «' + g + '»)');
+    return;
+  }
+  if (!it.handle) throw new Error('απαιτείται επιλογή φακέλου με δικαίωμα εγγραφής');
+  if (!WRITABLE.has(it.ext)) throw new Error('εγγραφή tag δεν υποστηρίζεται για .' + it.ext);
+  const file = await it.handle.getFile();
+  if ($('#bak').checked) {
+    let exists = true;
+    try { await it.parent.getFileHandle(it.name + '.bak'); } catch { exists = false; }
+    if (!exists) {   // το .bak δημιουργείται μία φορά και κρατά το αρχικό αρχείο
+      const bh = await it.parent.getFileHandle(it.name + '.bak', { create: true });
+      const bw = await bh.createWritable(); await bw.write(file); await bw.close();
+    }
+  }
+  const ex = $('#wExtra').checked && it.an ? (it.ext === 'mp3' ? { TBPM: String(Math.round(it.an.bpm)), TKEY: saKey(it.an) } : { BPM: String(Math.round(it.an.bpm)), INITIALKEY: saKey(it.an) }) : {};
+  const blob = it.ext === 'mp3' ? await id3WithGenre(file, text, ex) : await flacWithGenre(file, text, ex);
+  const w = await it.handle.createWritable(); await w.write(blob); await w.close();
+  await readCurrent(it);
+  if (text && it.current.replace(/^#\d+$/, '') !== text) throw new Error('η επαλήθευση απέτυχε (διάβασε: «' + it.current + '»)');
+}
+function confirmWrite(rows) {
+  return new Promise(resolve => {
+    const dlg = $('#dlg'), skip = $('#dlgSkip'), MAXR = 1000;
+    const same = it => it.sugg.trim() === it.current && !($('#wExtra').checked && it.an);
+    const pick = () => skip.checked ? rows.filter(it => !same(it)) : rows;
+    const draw = () => {
+      const sel = pick(), unsup = sel.filter(it => !WRITABLE.has(it.ext)).length;
+      $('#dlgS').textContent = `Θα γραφτεί το Genre${$('#wExtra').checked ? ' + BPM/Key' : ''} σε ${sel.length} από ${rows.length} αρχεία (αντικαθιστά το υπάρχον Genre).`
+        + (unsup ? ` ${unsup} δεν υποστηρίζουν εγγραφή και θα αποτύχουν.` : '')
+        + (rows.length > MAXR ? ` Εμφανίζονται οι πρώτες ${MAXR}.` : '');
+      $('#dlgTb').innerHTML = '<thead><tr><th>Αρχείο</th><th>Τρέχον Genre</th><th>Νέο Genre</th></tr></thead><tbody>'
+        + rows.slice(0, MAXR).map(it => `<tr class="${skip.checked && same(it) ? 'dim' : ''}"><td title="${esc(it.path)}">${esc(it.name)}</td><td>${it.current ? esc(it.current) : '<span class="dim">(κενό)</span>'}</td><td><b>${esc(it.sugg.trim())}</b></td></tr>`).join('') + '</tbody>';
+      $('#dlgYes').disabled = !sel.length; $('#dlgYes').textContent = `💾 Εγγραφή (${sel.length})`;
+    };
+    skip.onchange = draw; draw();
+    $('#dlgYes').onclick = () => dlg.close('yes'); $('#dlgNo').onclick = () => dlg.close('no');
+    dlg.returnValue = '';
+    dlg.addEventListener('close', () => resolve(dlg.returnValue === 'yes' ? pick() : null), { once: true });
+    dlg.showModal();
+  });
+}
+async function apply() {
+  if ($('#autoMap').checked) { const fn = mapFn(); if (fn) items.filter(i => i.checked).forEach(it => { const nv = fn(it.sugg); if (nv !== null && nv !== it.sugg) { it.sugg = nv; it.edited = true; } }); }
+  const rows = items.filter(it => it.checked && (it.sugg.trim() || ($('#wExtra').checked && it.an)));
+  if (!rows.length) return;
+  const todo = await confirmWrite(rows);
+  if (!todo || !todo.length) return;
+  stopPlayer(); setBusy(true); cancel = false;
+  let ok = 0, bad = 0;
+  for (let i = 0; i < todo.length && !cancel; i++) {
+    const it = todo[i]; setStatus(`Εγγραφή ${i + 1}/${todo.length}: ${it.name}`); setBar(i / todo.length);
+    try { await writeGenre(it, it.sugg.trim()); it.status = '✔ γράφτηκε'; it.checked = false; it.written = true; ok++; }
+    catch (e) { it.status = (WRITABLE.has(it.ext) ? '✖ ' : '⚠ ') + (e.message || e); log(it.path + ': ' + (e.stack || e)); bad++; }
+    updateRow(it);
+  }
+  setBar(0); setStatus(`Η εγγραφή ολοκληρώθηκε: ${ok} επιτυχίες, ${bad} αποτυχίες.`); setBusy(false);
+  toast(`Εγγραφή: ${ok} επιτυχίες` + (bad ? `, ${bad} αποτυχίες` : ''), bad ? 'wa' : 'ok');
+}
+
+/* ---------- Επαναφορά από .bak ---------- */
+$('#restore').onclick = async () => {
+  if (busy) return;
+  const sel = items.filter(i => i.checked), pool = (sel.length ? sel : items).filter(i => i.handle && i.parent);
+  stopPlayer(); setBusy(true); setStatus('Αναζήτηση αντιγράφων .bak…');
+  const found = [];
+  for (const it of pool) { try { found.push([it, await it.parent.getFileHandle(it.name + '.bak')]); } catch {} }
+  setBusy(false); setStatus('');
+  if (!found.length) { toast('Δεν βρέθηκαν αρχεία .bak' + (sel.length ? ' στα επιλεγμένα' : ''), 'wa'); return; }
+  if (!confirm(`Θα επαναφερθούν ${found.length} αρχεία από τα .bak (${sel.length ? 'μόνο επιλεγμένα' : 'όλα τα αρχεία με .bak'}). Οι τρέχουσες εκδόσεις θα αντικατασταθούν. Συνέχεια;`)) return;
+  setBusy(true); cancel = false; let ok = 0, bad = 0;
+  for (let i = 0; i < found.length && !cancel; i++) {
+    const [it, bh] = found[i]; setStatus(`Επαναφορά ${i + 1}/${found.length}: ${it.name}`); setBar(i / found.length);
+    try {
+      const bf = await bh.getFile(), w = await it.handle.createWritable(); await w.write(bf); await w.close();
+      await readCurrent(it); it.written = false; it.status = '↩ επαναφέρθηκε'; ok++;
+    } catch (e) { it.status = '✖ ' + (e.message || e); log(it.path + ': ' + (e.stack || e)); bad++; }
+    updateRow(it);
+  }
+  setBar(0); setStatus(`Η επαναφορά ολοκληρώθηκε: ${ok} επιτυχίες, ${bad} αποτυχίες.`); setBusy(false); renderAll();
+  toast(`Επαναφορά: ${ok} επιτυχίες` + (bad ? `, ${bad} αποτυχίες` : ''), bad ? 'wa' : 'ok');
+};
+
+/* ---------- Εξαγωγή ---------- */
+function download(name, mime, data) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: mime })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function exportCSV() {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['path', 'current_genre', 'suggested_genre', 'top1', 'confidence', 'top2', 'top3', 'bpm', 'key', 'camelot', 'energy', 'danceability', 'valence', 'loudness_db', 'dynamic_range_db', 'brightness', 'duration_s']];
+  items.forEach(it => rows.push([it.path, it.current, it.sugg, it.top?.[0]?.label, it.top ? it.top[0].score.toFixed(3) : '', it.top?.[1]?.label, it.top?.[2]?.label, ...saRow(it)]));
+  download('maest_genres.csv', 'text/csv;charset=utf-8', '\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n'));
+}
+function exportJSON() {
+  download('maest_genres.json', 'application/json', JSON.stringify(items.map(({ path, current, sugg, top, an }) => ({ path, current, suggested: sugg, top, analysis: an ? { ...an, wave: undefined } : null })), null, 2));
+}
+
+/* ---------- Μετρήσεις ήχου (BPM, key, ενέργεια…) ---------- */
+const SA=(()=>{
+const NOTE=['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+const CAM=[8,3,10,5,12,7,2,9,4,11,6,1];
+const MAJ=[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+const MIN=[6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+const COLS=[['name','Τίτλος'],['folder','Φάκελος'],['bpm','BPM'],['key','Κλίμακα'],['cam','Camelot'],['energy','Ενέργεια'],['dance','Χορευτ.'],['valence','Διάθεση'],['lufs','dB'],['dur','Διάρκεια']];
+let rows=[],chk=new Set(),view=[],plist=[],pi=-1,url=null,sel=null,sk='name',sd=1,busy=false,ctx=null;
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+
+/* FFT */
+const N=1024,H=256;
+const win=new Float32Array(N).map((_,i)=>0.5-0.5*Math.cos(2*Math.PI*i/N));
+const rev=new Uint16Array(N);for(let i=0;i<N;i++){let r=0;for(let b=0;b<10;b++)if(i&(1<<b))r|=1<<(9-b);rev[i]=r}
+const cs=new Float32Array(N/2).map((_,i)=>Math.cos(-2*Math.PI*i/N)),sn=new Float32Array(N/2).map((_,i)=>Math.sin(-2*Math.PI*i/N));
+function fft(re,im){
+  for(let i=0;i<N;i++){const j=rev[i];if(j>i){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t}}
+  for(let s=2;s<=N;s<<=1){const h=s>>1,st=N/s;
+    for(let i=0;i<N;i+=s)for(let k=0;k<h;k++){
+      const a=i+k,b=a+h,wr=cs[k*st],wi=sn[k*st];
+      const tr=re[b]*wr-im[b]*wi,ti=re[b]*wi+im[b]*wr;
+      re[b]=re[a]-tr;im[b]=im[a]-ti;re[a]+=tr;im[a]+=ti}}
+}
+
+/* Ανάλυση */
+function analyze(ab){
+  const c1=ab.getChannelData(0),c2=ab.numberOfChannels>1?ab.getChannelData(1):c1;
+  const f=Math.max(1,Math.round(ab.sampleRate/11025)),sr=ab.sampleRate/f,n=Math.floor(ab.length/f);
+  const x=new Float32Array(n);let peak=0;
+  for(let i=0;i<n;i++){let s=0;for(let j=0;j<f;j++){const k=i*f+j,a=c1[k],b=c2[k];s+=(a+b)/2;const m=Math.max(Math.abs(a),Math.abs(b));if(m>peak)peak=m}x[i]=s/f}
+  const bin=sr/N,pc=new Int8Array(N/2).fill(-1),fr=new Float32Array(N/2);
+  for(let k=1;k<N/2;k++){const hz=k*bin;fr[k]=hz;if(hz>60&&hz<2000)pc[k]=((Math.round(12*Math.log2(hz/440)+69)%12)+12)%12}
+  const re=new Float32Array(N),im=new Float32Array(N),prev=new Float32Array(N/2);
+  const T=Math.max(0,Math.floor((n-N)/H));
+  const flux=new Float32Array(T),rms=new Float32Array(T),chroma=new Float64Array(12);
+  let cent=0,fluxSum=0,magSum=0;
+  for(let t=0;t<T;t++){
+    let e=0;const o=t*H;
+    for(let i=0;i<N;i++){const v=x[o+i];re[i]=v*win[i];im[i]=0;e+=v*v}
+    rms[t]=Math.sqrt(e/N);
+    fft(re,im);
+    let fx=0,ms=0,cn=0;
+    for(let k=1;k<N/2;k++){
+      const m=Math.sqrt(Math.hypot(re[k],im[k]));
+      const d=m-prev[k];if(d>0)fx+=d;prev[k]=m;ms+=m;cn+=m*fr[k];
+      if(pc[k]>=0)chroma[pc[k]]+=m*m}
+    flux[t]=fx;fluxSum+=fx;magSum+=ms;cent+=ms>0?cn/ms:0;
+  }
+  const fps=sr/H;
+  /* BPM */
+  const env=new Float32Array(T),W=Math.round(fps);
+  for(let i=0;i<T;i++){let a=0,c=0;for(let j=Math.max(0,i-W);j<Math.min(T,i+W);j++){a+=flux[j];c++}env[i]=Math.max(0,flux[i]-a/c)}
+  let r0=0;for(let i=0;i<T;i++)r0+=env[i]*env[i];
+  const lo=Math.floor(fps*60/200),hi=Math.ceil(fps*60/60),R=[];
+  for(let l=lo-1;l<=hi+1;l++){let s=0;for(let i=0;i+l<T;i++)s+=env[i]*env[i+l];R[l]=s}
+  let best=0,bl=lo,bs=0;
+  for(let l=lo;l<=hi;l++){const bp=60*fps/l,w=Math.exp(-0.5*Math.pow(Math.log2(bp/115)/1.0,2)),v=R[l]*w;if(v>best&&R[l]>=R[l-1]&&R[l]>=R[l+1]){best=v;bl=l;bs=R[l]}}
+  const a=R[bl-1],b=R[bl],c=R[bl+1],den=a-2*b+c,off=den?0.5*(a-c)/den:0;
+  const bpm=60*fps/(bl+clamp(off,-1,1));
+  const beatStr=r0>0?bs/r0:0;
+  /* Τονικότητα */
+  let bk=0,bm=0,bc=-9;
+  const mc=chroma.reduce((p,v)=>p+v,0)/12;
+  for(let m=0;m<2;m++){const pr=m?MIN:MAJ,pm=pr.reduce((p,v)=>p+v,0)/12;
+    for(let k=0;k<12;k++){let sxy=0,sx=0,sy=0;
+      for(let i=0;i<12;i++){const u=chroma[(k+i)%12]-mc,v=pr[i]-pm;sxy+=u*v;sx+=u*u;sy+=v*v}
+      const cc=sxy/Math.sqrt(sx*sy||1);if(cc>bc){bc=cc;bk=k;bm=m}}}
+  const cam=bm?CAM[(bk+3)%12]+'A':CAM[bk]+'B';
+  /* Ένταση */
+  let ms=0;for(let t=0;t<T;t++)ms+=rms[t]*rms[t];
+  const db=20*Math.log10(Math.sqrt(ms/Math.max(1,T))+1e-9);
+  const rdb=Array.from(rms,v=>20*Math.log10(v+1e-9)).sort((p,q)=>p-q);
+  const dr=rdb.length?rdb[Math.floor(rdb.length*.95)]-rdb[Math.floor(rdb.length*.1)]:0;
+  const cavg=cent/Math.max(1,T),bright=clamp((cavg-500)/3000);
+  const fluxRel=magSum?fluxSum/magSum:0;
+  const loudN=clamp((db+32)/22);
+  const energy=Math.round(100*clamp(.5*loudN+.25*bright+.25*clamp(fluxRel/.35)));
+  const dance=Math.round(100*clamp(beatStr/.45)*(bpm>=80&&bpm<=170?1:.8));
+  const valence=Math.round(100*clamp(.3+(bm?-.05:.2)+clamp((bpm-70)/90)*.25+bright*.2+loudN*.1));
+  /* κυματομορφή */
+  const wave=[],seg=Math.floor(n/300)||1;
+  for(let i=0;i<300;i++){let m=0;for(let j=i*seg;j<Math.min(n,(i+1)*seg);j++){const v=Math.abs(x[j]);if(v>m)m=v}wave.push(m)}
+  const wm=Math.max(...wave)||1;
+  const cm=Math.max(...chroma)||1;
+  return {bpm:Math.round(bpm*10)/10,key:NOTE[bk]+(bm?' minor':' major'),cam,energy,dance,valence,lufs:Math.round(db*10)/10,
+    peak:Math.round(20*Math.log10(peak+1e-9)*10)/10,dr:Math.round(dr*10)/10,cent:Math.round(cavg),bright:Math.round(bright*100),
+    conf:Math.round(clamp((bc-.4)/.45)*100),dur:ab.duration,sr:ab.sampleRate,ch:ab.numberOfChannels,
+    wave:wave.map(v=>v/wm),chroma:Array.from(chroma,v=>v/cm),root:bk};
+}
+
+
+return {analyze,NOTE,CAM,clamp,fmt};
+})();
+
+const saMono = a => ({ numberOfChannels: 1, length: a.length, sampleRate: SR, duration: a.length / SR, getChannelData: () => a });
+const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+const saKey = a => a.key.replace(' minor', 'm').replace(' major', '').replace('♯', '#').replace('♭', 'b');
+const saDist = (a, b) => { const na = parseInt(a), nb = parseInt(b); let d = Math.abs(na - nb); d = Math.min(d, 12 - d); return a.slice(-1) === b.slice(-1) ? d : (d === 0 ? 1 : d + 2); };
+const saRel = (x, y) => { const d = saDist(x.an.cam, y.an.cam); return d === 0 ? 'Ίδιο key ✓✓' : d === 1 ? 'Συμβατά ✓' : d === 2 ? 'Αποδεκτό ~' : 'Ασύμβατα ✗'; };
+const ic = n => '<svg class="ic" viewBox="0 0 24 24"><use href="#i-' + n + '"/></svg>';
+const dspCells = it => { const a = it.an; if (!a) return '<td></td>'.repeat(6);
+  const mt = (v, h) => `<div class="mt" style="--h:${h}"><i style="width:${v}%"></i><b>${v}</b></div>`;
+  return `<td><div class="bpm"><b>${(+a.bpm).toFixed(a.be ? 1 : 0)}</b><button class="btn sm ib" data-info title="Λεπτομέρειες">${ic('info')}</button></div></td>
+  <td><span class="cam" style="--h:${(parseInt(a.cam) - 1) * 30}" title="${esc(a.key)}">${a.cam}</span></td>
+  <td>${mt(a.energy, 14)}</td><td>${mt(a.dance, 265)}</td><td><span class="dim">${a.lufs}</span></td><td>${mmss(a.dur)}</td>`; };
+const saRow = it => { const a = it.an; return a ? [a.bpm, a.key, a.cam, a.energy, a.dance, a.valence, a.lufs, a.dr, a.bright, Math.round(a.dur)] : ['', '', '', '', '', '', '', '', '', '']; };
+const SA_M = [['bpm','BPM'],['energy','Ενέργεια'],['dance','Χορευτικότητα'],['valence','Διάθεση'],['lufs','Ένταση dB'],['dr','Δυναμικό εύρος dB'],['bright','Φωτεινότητα'],['dur','Διάρκεια']];
+
+/* Λεπτομέρειες */
+function saDetail(it) {
+  const a = it.an, c = $('#dtC'); c.hidden = false;
+  c.innerHTML = `<div class="row"><b>${esc(it.name)}</b><div class="sp"></div><button class="btn sm" data-x="dtC">✕</button></div>
+  <canvas id="saCv" width="900" height="160" style="width:100%;height:80px"></canvas>
+  <div class="sagrid">${[['BPM',a.bpm+(a.be?' ('+a.be+')':'')],['Κλίμακα',a.key+' ('+a.cam+')'],['Βεβαιότητα key',a.conf+'%'+(a.ke?' ('+a.ke+')':'')],['Ενέργεια',a.energy],['Χορευτικότητα',a.dance],['Διάθεση',a.valence],['Μέση ένταση',a.lufs+' dB'],['Κορυφή',a.peak+' dB'],['Δυν. εύρος',a.dr+' dB'],['Φωτεινότητα',a.bright],['Κέντρο φάσματος',a.cent+' Hz'],['Διάρκεια',mmss(a.dur)]].map(([l,v])=>`<div><b>${v}</b><small>${l}</small></div>`).join('')}</div>
+  <div class="sachroma">${a.chroma.map((v,i)=>`<div><i style="height:${Math.max(3,v*52)}px;${i===a.root?'background:var(--pri,#6d4aff)':''}"></i>${SA.NOTE[i]}</div>`).join('')}</div>`;
+  const g = $('#saCv').getContext('2d'), W = 900, H = 160, bw = W / a.wave.length;
+  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--pri').trim() || '#6d4aff';
+  a.wave.forEach((v, i) => { const h = Math.max(2, v * H * .95); g.fillRect(i * bw, (H - h) / 2, bw * .7, h); });
+  c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+$('#tb').addEventListener('click', e => { const b = e.target.closest('[data-info]'); if (b) { e.stopPropagation(); const it = items.find(i => i.id == b.closest('tr').dataset.id); if (it && it.an) saDetail(it); } }, true);
+
+/* Σύγκριση */
+function saCompare() {
+  const S = items.filter(i => i.checked && i.an), c = $('#cmpC');
+  if (S.length < 2 || S.length > 4) { toast('Τσέκαρε 2 έως 4 αναλυμένα τραγούδια (τώρα: ' + S.length + ')', 'wa'); return; }
+  let h = `<div class="row"><b>⚖️ Σύγκριση</b><div class="sp"></div><button class="btn sm" data-x="cmpC">✕</button></div><div class="tw"><table><thead><tr><th></th>${S.map(r => `<th>${esc(r.name)}</th>`).join('')}</tr></thead><tbody>`;
+  h += `<tr><td>Κλίμακα</td>${S.map(r => `<td>${esc(r.an.key)} (${r.an.cam})</td>`).join('')}</tr>`;
+  SA_M.forEach(([k, l]) => { const mx = Math.max(...S.map(r => r.an[k])); h += `<tr><td>${l}</td>${S.map(r => `<td style="${r.an[k] === mx ? 'color:#17a673;font-weight:700' : ''}">${k === 'dur' ? mmss(r.an[k]) : r.an[k]}</td>`).join('')}</tr>`; });
+  h += '</tbody></table></div><div class="hint">Πράσινο = υψηλότερη τιμή. Συμβατότητα μίξης: ';
+  const pr = []; for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) pr.push(`<b>${esc(S[i].name)}</b> ↔ <b>${esc(S[j].name)}</b>: ${saRel(S[i], S[j])}, ΔBPM ${Math.abs(S[i].an.bpm - S[j].an.bpm).toFixed(1)}`);
+  c.innerHTML = h + pr.join(' · ') + '</div>'; c.hidden = false; c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* Playlist */
+let plist = [], plPos = -1, plSrc = '';
+function saBuild() {
+  const mode = $('#plMode').value, ck = items.filter(i => i.checked && i.an);
+  let P = (ck.length >= 2 ? ck : visible().filter(i => i.an)).slice();
+  if (P.length < 2) { toast('Χρειάζονται τουλάχιστον 2 αναλυμένα τραγούδια', 'wa'); return; }
+  if (mode === 'bpm') P.sort((x, y) => x.an.bpm - y.an.bpm);
+  else if (mode === 'energy') P.sort((x, y) => x.an.energy - y.an.energy);
+  else {
+    P.sort((x, y) => x.an.energy - y.an.energy); const out = [P.shift()];
+    while (P.length) { const l = out[out.length - 1].an; let bi = 0, bs = 1e9;
+      P.forEach((r, i) => { const s = saDist(l.cam, r.an.cam) * 10 + Math.abs(l.bpm - r.an.bpm) * .5 + Math.max(0, l.energy - r.an.energy) * .05; if (s < bs) { bs = s; bi = i; } });
+      out.push(P.splice(bi, 1)[0]); }
+    P = out;
+  }
+  plist = P; plPos = -1; saShowPl(); $('#plC').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function saShowPl() {
+  const c = $('#plC'); c.hidden = false;
+  c.innerHTML = `<div class="row"><b>🎼 Playlist · ${plist.length} τραγούδια · ${mmss(plist.reduce((p, r) => p + r.an.dur, 0))}</b><div class="sp"></div><button class="btn sm" data-act="all">▶ Όλα</button><button class="btn sm" data-act="copy">Αντιγραφή</button><button class="btn sm" data-x="plC">✕</button></div>
+  <ol class="sapl">${plist.map((r, i) => `<li class="${i === plPos ? 'now' : ''}"><button class="btn sm" data-p="${i}">▶</button>${esc(r.name)} <small>· ${r.an.bpm} BPM · ${r.an.cam} · E${r.an.energy}${i ? ' · ' + saRel(plist[i - 1], r) + ' · Δ' + Math.abs(r.an.bpm - plist[i - 1].an.bpm).toFixed(0) + ' BPM' : ''}</small></li>`).join('')}</ol>`;
+}
+async function saPlayAt(i) { plPos = i; stopPlayer(); await togglePlay(plist[i]); plSrc = player.src; saShowPl(); }
+player.addEventListener('ended', () => { if (plPos >= 0 && plPos < plist.length - 1 && player.src === plSrc) saPlayAt(plPos + 1); });
+$('#plC').onclick = async e => { const d = e.target.dataset;
+  if (d.p !== undefined) saPlayAt(+d.p); else if (d.act === 'all') saPlayAt(0);
+  else if (d.act === 'copy') { const t = plist.map((r, i) => `${i + 1}. ${r.name} - ${r.an.bpm} BPM - ${r.an.cam}`).join('\n'); try { await navigator.clipboard.writeText(t); toast('Αντιγράφηκε', 'ok'); } catch { toast('Δεν επιτρέπεται η αντιγραφή', 'wa'); } } };
+document.addEventListener('click', e => { const x = e.target.dataset && e.target.dataset.x; if (x) $('#' + x).hidden = true; });
+$('#bCmp').onclick = saCompare; $('#bPl').onclick = saBuild;
+
+/* ---------- OpenKeyScan: log-CQT + KeyNet CNN (port του okscan/dsp.py, άδεια MIT) ---------- */
+const OK_SR = 44100, OK_HOP = 8820, OK_FMIN = 65, OK_BINS = 105, OK_BPO = 24, OK_MAXS = 600;
+const OK_NAMES = ['Ab minor','Eb minor','Bb minor','F minor','C minor','G minor','D minor','A minor','E minor','B minor','F# minor','C# minor','B major','F# major','Db major','Ab major','Eb major','Bb major','F major','C major','G major','D major','A major','E major'];
+const OK_PC = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
+const OK_URL = 'https://raw.githubusercontent.com/fdrv161/openkeyscan-reaper/main/models/keynet.onnx';
+const OK_ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.mjs';
+let okSess = null, okOrt = null, okLocal = null, okP = null;
+
+const okTw = {};
+function okFFT(re, im, n) {
+  let T = okTw[n];
+  if (!T) {
+    const c = new Float64Array(n / 2), s = new Float64Array(n / 2), r = new Uint32Array(n), bits = Math.log2(n);
+    for (let i = 0; i < n / 2; i++) { c[i] = Math.cos(-2 * Math.PI * i / n); s[i] = Math.sin(-2 * Math.PI * i / n); }
+    for (let i = 0; i < n; i++) { let x = i, y = 0; for (let b = 0; b < bits; b++) { y = (y << 1) | (x & 1); x >>= 1; } r[i] = y; }
+    T = okTw[n] = { c, s, r };
+  }
+  const { c, s, r } = T;
+  for (let i = 0; i < n; i++) { const j = r[i]; if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+  for (let sz = 2; sz <= n; sz <<= 1) {
+    const h = sz >> 1, st = n / sz;
+    for (let i = 0; i < n; i += sz) for (let k = 0; k < h; k++) {
+      const a = i + k, b = a + h, wr = c[k * st], wi = s[k * st];
+      const tr = re[b] * wr - im[b] * wi, ti = re[b] * wi + im[b] * wr;
+      re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+    }
+  }
+}
+/* Φίλτρο Kaiser + υποδειγματοληψία ×2 (αντί για soxr), με κλιμάκωση √2 όπως στο librosa (scale=True) */
+let okLP = null;
+function okHalf(y, sc = Math.SQRT2) {
+  const L = 48;
+  if (!okLP) {
+    const i0 = x => { let s = 1, t = 1; for (let k = 1; k < 40; k++) { t *= (x / 2 / k) ** 2; s += t; } return s; };
+    const h = new Float64Array(2 * L + 1), fc = 0.25; let sum = 0;
+    for (let n = -L; n <= L; n++) { const x = n === 0 ? 2 * fc : Math.sin(2 * Math.PI * fc * n) / (Math.PI * n); h[n + L] = x * i0(8 * Math.sqrt(1 - (n / L) ** 2)) / i0(8); sum += h[n + L]; }
+    for (let i = 0; i < h.length; i++) h[i] /= sum;
+    okLP = h;
+  }
+  const n = y.length, m = Math.ceil(n / 2), out = new Float32Array(m), h = okLP;
+  for (let k = 0; k < m; k++) {
+    const c = 2 * k, a = Math.max(0, c - L), b = Math.min(n - 1, c + L); let acc = 0;
+    for (let j = a; j <= b; j++) acc += y[j] * h[c - j + L];
+    out[k] = acc * sc;
+  }
+  return out;
+}
+function okPlan() {
+  if (okP) return okP;
+  const nb = OK_BINS, bpo = OK_BPO, nOct = Math.ceil(nb / bpo), nFilt = Math.min(bpo, nb);
+  const freqs = []; for (let o = 0; o < nOct; o++) for (let k = 0; k < bpo; k++) freqs.push(2 ** o * 2 ** (k / bpo));
+  freqs.length = nb; for (let i = 0; i < nb; i++) freqs[i] *= OK_FMIN;
+  const lf = freqs.map(Math.log2), bp = new Array(nb);
+  bp[0] = 1 / (lf[1] - lf[0]); bp[nb - 1] = 1 / (lf[nb - 1] - lf[nb - 2]);
+  for (let i = 1; i < nb - 1; i++) bp[i] = 2 / (lf[i + 1] - lf[i - 1]);
+  const alpha = bp.map(b => (2 ** (2 / b) - 1) / (2 ** (2 / b) + 1));
+  const oct = []; let mySr = OK_SR, myHop = OK_HOP;
+  for (let i = 0; i < nOct; i++) {
+    const hi = i === 0 ? nb : nb - nFilt * i, lo = Math.max(0, nb - nFilt * (i + 1));
+    const lens = []; for (let j = lo; j < hi; j++) lens.push(mySr / (alpha[j] * freqs[j]));
+    const nfft = 2 ** Math.ceil(Math.log2(Math.max(...lens))), half = nfft / 2, B = { idx: [], re: [], im: [] };
+    for (let q = 0; q < lens.length; q++) {
+      const ilen = lens[q], f = freqs[lo + q], st = Math.floor(-ilen / 2), Lt = Math.floor(ilen / 2) - st;
+      const re = new Float64Array(nfft), im = new Float64Array(nfft), lp = Math.floor((nfft - Lt) / 2); let l1 = 0;
+      for (let j = 0; j < Lt; j++) { const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * j / Lt), t = (st + j) * 2 * Math.PI * f / mySr; re[lp + j] = Math.cos(t) * w; im[lp + j] = Math.sin(t) * w; l1 += w; }
+      const sc = lens[q] / nfft / l1;
+      for (let j = lp; j < lp + Lt; j++) { re[j] *= sc; im[j] *= sc; }
+      okFFT(re, im, nfft);
+      const mag = new Float64Array(half + 1); let tot = 0;
+      for (let k = 0; k <= half; k++) { mag[k] = Math.hypot(re[k], im[k]); tot += mag[k]; }
+      const srt = Float64Array.from(mag).sort(); let cum = 0, th = srt[0];
+      for (let k = 0; k < srt.length; k++) { cum += srt[k] / tot; if (!(cum < 0.01)) { th = srt[k]; break; } }
+      const g = Math.sqrt(OK_SR / mySr), ix = [], rr = [], ii = [];
+      for (let k = 0; k <= half; k++) if (mag[k] >= th) { ix.push(k); rr.push(re[k] * g); ii.push(im[k] * g); }
+      B.idx.push(Int32Array.from(ix)); B.re.push(Float32Array.from(rr)); B.im.push(Float32Array.from(ii));
+    }
+    const down = myHop % 2 === 0 && i + 1 < nOct;
+    oct.push({ nfft, hop: myHop, B, down });
+    if (down) { myHop /= 2; mySr /= 2; }
+  }
+  const norm = freqs.map((f, i) => Math.sqrt(OK_SR / (alpha[i] * f)));   // √(μήκος φίλτρου)
+  return okP = { oct, norm };
+}
+function okOctave(y, o) {
+  const { nfft, hop, B } = o, half = nfft >> 1, nf = 1 + Math.floor(y.length / hop), nb = B.idx.length;
+  const R = new Float32Array(nb * nf), I = new Float32Array(nb * nf), re = new Float64Array(nfft), im = new Float64Array(nfft);
+  for (let t = 0; t < nf; t++) {
+    const s0 = t * hop - half;
+    for (let i = 0; i < nfft; i++) { const p = s0 + i; re[i] = p >= 0 && p < y.length ? y[p] : 0; im[i] = 0; }
+    okFFT(re, im, nfft);
+    for (let f = 0; f < nb; f++) {
+      const ix = B.idx[f], br = B.re[f], bi = B.im[f]; let sr = 0, si = 0;
+      for (let q = 0; q < ix.length; q++) { const k = ix[q]; sr += br[q] * re[k] - bi[q] * im[k]; si += br[q] * im[k] + bi[q] * re[k]; }
+      R[f * nf + t] = sr; I[f * nf + t] = si;
+    }
+  }
+  return { R, I, nf, nb };
+}
+/* log1p(|CQT|) με 105 bins, 24 ανά οκτάβα, από 65 Hz, hop 0.2 s — χωρίς τα 2 τελευταία καρέ */
+function okSpec(y) {
+  const P = okPlan(), resp = []; let yy = y;
+  for (const o of P.oct) { resp.push(okOctave(yy, o)); if (o.down) yy = okHalf(yy); }
+  const mc = Math.min(...resp.map(r => r.nf)), T = mc - 2, nb = OK_BINS, out = new Float32Array(nb * T);
+  let end = nb;
+  for (const r of resp) {
+    const n = r.nb, take = Math.min(n, end), r0 = n - take, o0 = end - take;
+    for (let f = 0; f < take; f++) for (let t = 0; t < T; t++) {
+      const k = o0 + f, a = r.R[(r0 + f) * r.nf + t], b = r.I[(r0 + f) * r.nf + t];
+      out[k * T + t] = Math.log1p(Math.hypot(a, b) / P.norm[k]);
+    }
+    end -= n;
+  }
+  return { data: out, T };
+}
+
+/* ---------- DeepRhythm: HCQM + CNN για τέμπο, και βελτίωση BPM με autocorrelation (port του okscan/deeprhythm, AGPL-3.0) ---------- */
+const DR_SR = 22050, DR_CLIP = 176400, DR_N = 2048, DR_HOP = 512, DR_NB = 240, DR_BANDS = 8, DR_MAXCLIPS = 40, DR_REFINE_S = 240;
+const DR_URL = 'https://raw.githubusercontent.com/fdrv161/openkeyscan-reaper/main/models/deeprhythm.onnx';
+let drSess = null, drLocal = null, drP = null, drMel = null;
+const drHann = n => { const w = new Float64Array(n); for (let i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / n); return w; };
+const drRound = x => { const r = Math.round(x); return (Math.abs(x % 1) === 0.5 && r % 2 !== 0) ? r - 1 : r; };
+function drPlan() {
+  if (drP) return drP;
+  const nbin = DR_N / 2 + 1, lb = [];
+  for (let i = 0; i <= DR_BANDS; i++) lb.push(drRound(Math.pow(10, i * Math.log10(nbin) / DR_BANDS) - 1));
+  const u = [...new Set(lb)].sort((a, b) => a - b), bands = [];
+  for (let i = 0; i < DR_BANDS; i++) { const s = u[i], e = i < DR_BANDS - 1 ? u[i + 1] : nbin; bands.push({ s, e, w: 1 / (e - s) }); }
+  const T = 1 + Math.floor(DR_CLIP / DR_HOP), hop = Math.floor(DR_CLIP / DR_HOP), srq = Math.floor(DR_CLIP / (DR_HOP * 8)), harm = [];
+  for (const h of [0.5, 1, 2, 3, 4, 5]) {
+    const fmin = 32.7 * h / 60, fmax = srq / 2, bpo = DR_NB / Math.log2(fmax / fmin), Q = 1 / (2 ** (1 / bpo) - 1);
+    const fr = [], ln = []; for (let k = 0; k < DR_NB; k++) { fr.push(fmin * 2 ** (k / bpo)); ln.push(Math.ceil(Q * srq / fr[k])); }
+    const width = 2 ** Math.ceil(Math.log2(Math.floor(Math.max(...ln)))), pad = width / 2, nF = Math.floor((T + 2 * pad - width) / hop) + 1, frames = [];
+    for (let f = 0; f < nF; f++) {
+      const start = f * hop - pad, i0 = Math.max(0, start), i1 = Math.min(T, start + width), re = [], im = [];
+      for (let k = 0; k < DR_NB; k++) {
+        const l = ln[k], L = Math.floor(l), ks = Math.ceil(width / 2 - l / 2) - (l % 2 === 1 ? 1 : 0), lo = Math.floor(-l / 2);
+        const R = new Float32Array(i1 - i0), I = new Float32Array(i1 - i0);
+        for (let t = i0; t < i1; t++) {
+          const j = t - start - ks; if (j < 0 || j >= L) continue;
+          const th = (j + lo) * 2 * Math.PI * fr[k] / srq, a = 2 * (0.5 - 0.5 * Math.cos(2 * Math.PI * j / L)) / l;
+          R[t - i0] = a * Math.cos(th); I[t - i0] = a * Math.sin(th);
+        }
+        re.push(R); im.push(I);
+      }
+      frames.push({ i0, i1, re, im });
+    }
+    harm.push({ frames, nF, scale: ln.map(Math.sqrt) });
+  }
+  return drP = { bands, T, harm };
+}
+function drBands(x, P) {
+  const L = x.length, T = P.T, win = drHann(DR_N), re = new Float64Array(DR_N), im = new Float64Array(DR_N), out = new Float32Array(DR_BANDS * T);
+  for (let t = 0; t < T; t++) {
+    for (let i = 0; i < DR_N; i++) { let p = t * DR_HOP + i - DR_N / 2; if (p < 0) p = -p; else if (p >= L) p = 2 * (L - 1) - p; re[i] = x[p] * win[i]; im[i] = 0; }
+    okFFT(re, im, DR_N);
+    for (let b = 0; b < DR_BANDS; b++) { const { s, e, w } = P.bands[b]; let acc = 0; for (let k = s; k < e; k++) acc += Math.hypot(re[k], im[k]); out[b * T + t] = acc * w; }
+  }
+  return out;
+}
+function drHCQM(clips) {
+  const P = drPlan(), T = P.T, B = clips.length, bands = new Float32Array(B * DR_BANDS * T);
+  clips.forEach((c, i) => bands.set(drBands(c, P), i * DR_BANDS * T));
+  let mx = -1e9; const db = new Float32Array(bands.length);
+  for (let i = 0; i < bands.length; i++) { const v = 10 * Math.log10(Math.max(bands[i], 1e-10)); db[i] = v; if (v > mx) mx = v; }
+  const fl = mx - 80; for (let i = 0; i < db.length; i++) if (db[i] < fl) db[i] = fl;
+  const rows = B * DR_BANDS, osf = new Float32Array(rows * T);
+  for (let r = 0; r < rows; r++) for (let t = 3; t < T; t++) osf[r * T + t] = Math.max(db[r * T + t - 2] - db[r * T + t - 3], 0);
+  const out = new Float32Array(B * 6 * DR_NB * DR_BANDS);
+  for (let hI = 0; hI < 6; hI++) {
+    const H = P.harm[hI];
+    for (let r = 0; r < rows; r++) {
+      const c = Math.floor(r / DR_BANDS), b = r % DR_BANDS;
+      for (let k = 0; k < DR_NB; k++) {
+        let tot = 0;
+        for (const f of H.frames) { let sr = 0, si = 0; const R = f.re[k], I = f.im[k]; for (let t = f.i0; t < f.i1; t++) { const v = osf[r * T + t]; sr += v * R[t - f.i0]; si += v * I[t - f.i0]; } tot += Math.hypot(sr * H.scale[k], si * H.scale[k]); }
+        const F = b * DR_NB + k;
+        out[((c * 6 + hI) * DR_NB + (F >> 3)) * DR_BANDS + (F & 7)] = tot / H.nF;
+      }
+    }
+  }
+  return out;
+}
+async function drNet(y22) {
+  const n = Math.floor(y22.length / DR_CLIP), idx = [];
+  if (n <= DR_MAXCLIPS) for (let i = 0; i < n; i++) idx.push(i); else for (let i = 0; i < DR_MAXCLIPS; i++) idx.push(Math.round(i * (n - 1) / (DR_MAXCLIPS - 1)));
+  const probs = new Float64Array(256), per = 6 * DR_NB * DR_BANDS;
+  for (let s = 0; s < idx.length; s += 8) {
+    const part = idx.slice(s, s + 8).map(i => y22.subarray(i * DR_CLIP, (i + 1) * DR_CLIP)), data = drHCQM(part);
+    const out = await drSess.run({ hcqm: new okOrt.Tensor('float32', data, [part.length, 6, DR_NB, DR_BANDS]) }), lg = out.logits.data;
+    for (let c = 0; c < part.length; c++) {
+      let m = -1e9; for (let k = 0; k < 256; k++) m = Math.max(m, lg[c * 256 + k]);
+      let z = 0; const e = new Float64Array(256); for (let k = 0; k < 256; k++) { e[k] = Math.exp(lg[c * 256 + k] - m); z += e[k]; }
+      for (let k = 0; k < 256; k++) probs[k] += e[k] / z / idx.length;
+    }
+  }
+  let cls = 0; for (let k = 1; k < 256; k++) if (probs[k] > probs[cls]) cls = k;
+  return { coarse: 30 + cls, conf: probs[cls] };
+}
+function drMelFilters() {
+  if (drMel) return drMel;
+  const nm = 128, fsp = 200 / 3, mlh = 1000, mlm = mlh / fsp, ls = Math.log(6.4) / 27;
+  const h2m = f => f >= mlh ? mlm + Math.log(f / mlh) / ls : f / fsp, m2h = m => m >= mlm ? mlh * Math.exp(ls * (m - mlm)) : fsp * m;
+  const m1 = h2m(DR_SR / 2), mf = []; for (let i = 0; i < nm + 2; i++) mf.push(m2h(m1 * i / (nm + 1)));
+  const F = [];
+  for (let i = 0; i < nm; i++) {
+    const ks = [], ws = [];
+    for (let k = 0; k <= 1024; k++) { const fk = k * DR_SR / 2048, w = Math.max(0, Math.min((fk - mf[i]) / (mf[i + 1] - mf[i]), (mf[i + 2] - fk) / (mf[i + 2] - mf[i + 1]))) * 2 / (mf[i + 2] - mf[i]); if (w > 0) { ks.push(k); ws.push(w); } }
+    F.push({ ks: Int32Array.from(ks), ws: Float64Array.from(ws) });
+  }
+  return drMel = F;
+}
+function drOnset(y) {
+  const N = 2048, H = 128, F = drMelFilters(), T = 1 + Math.floor(y.length / H), win = drHann(N), re = new Float64Array(N), im = new Float64Array(N), S = new Float32Array(128 * T);
+  let mx = -1e9;
+  for (let t = 0; t < T; t++) {
+    for (let i = 0; i < N; i++) { const p = t * H + i - N / 2; re[i] = p >= 0 && p < y.length ? y[p] * win[i] : 0; im[i] = 0; }
+    okFFT(re, im, N);
+    for (let m = 0; m < 128; m++) { const { ks, ws } = F[m]; let a = 0; for (let q = 0; q < ks.length; q++) { const k = ks[q]; a += ws[q] * (re[k] * re[k] + im[k] * im[k]); } const v = 10 * Math.log10(Math.max(1e-10, a)); S[m * T + t] = v; if (v > mx) mx = v; }
+  }
+  const fl = mx - 80, env = new Float32Array(T);
+  for (let t = 9; t < T; t++) { let a = 0; for (let m = 0; m < 128; m++) { const p = Math.max(S[m * T + t - 8], fl), q = Math.max(S[m * T + t - 9], fl); if (p > q) a += p - q; } env[t] = a / 128; }
+  return env;
+}
+function drRefine(env, coarse) {
+  const fps = DR_SR / 128, n = env.length; let mean = 0; for (let i = 0; i < n; i++) mean += env[i]; mean /= n;
+  const a0 = Math.max(coarse - 1, 20), nc = Math.ceil((coarse + 2 - a0) / 0.01), maxLag = Math.ceil(60 * fps / a0 * 16) + 2;
+  if (maxLag >= n) return coarse;
+  let M = 1; while (M < 2 * n) M <<= 1;
+  const re = new Float64Array(M), im = new Float64Array(M); for (let i = 0; i < n; i++) re[i] = env[i] - mean;
+  okFFT(re, im, M); for (let i = 0; i < M; i++) { re[i] = re[i] * re[i] + im[i] * im[i]; im[i] = 0; }
+  okFFT(re, im, M);
+  let best = -1e30, bc = coarse;
+  for (let c = 0; c < nc; c++) {
+    const bpm = a0 + c * 0.01; let sc = 0;
+    for (let b = 1; b <= 16; b++) { const x = 60 * fps / bpm * b, i = Math.floor(x), f = x - i; sc += (re[i] * (1 - f) + re[i + 1] * f) / M; }
+    if (sc > best) { best = sc; bc = bpm; }
+  }
+  return bc;
+}
+async function drTempo(y44) {
+  const y22 = okHalf(y44, 1);
+  if (y22.length < DR_CLIP) throw new Error('πολύ σύντομο για τέμπο (<8 s)');
+  const r = await drNet(y22), st = Math.max(0, Math.floor((y22.length - DR_REFINE_S * DR_SR) / 2));
+  const bpm = drRefine(drOnset(y22.subarray(st, st + DR_REFINE_S * DR_SR)), r.coarse);
+  return { bpm: Math.round(bpm * 100) / 100, conf: r.conf, coarse: r.coarse };
+}
+
+/* Native (Tauri) bridge: in the desktop app, key detection runs in Rust (symphonia + CQT + tract) */
+const TAURI = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core : null;
+async function nativeAnalyze(file, req) {
+  return TAURI.invoke('analyze', await file.arrayBuffer(), { headers: { 'x-ext': (file.name.split('.').pop() || '').toLowerCase(), 'x-key': req.key ? '1' : '0', 'x-tempo': req.tempo ? '1' : '0', 'x-genre': req.genre ? '1' : '0', 'x-feats': req.feats ? '1' : '0', 'x-nwin': String(req.nwin || 1) } });
+}
+let nativeGenre = false;   // true όταν υπάρχει maest.onnx για native genre· γίνεται false μετά από αποτυχία
+async function nativeFile(it) { const b = await TAURI.invoke('read_file', { path: it.native }); return new File([b], it.name); }
+async function pickFolderNative() {
+  try {
+    const dir = await window.__TAURI__.dialog.open({ directory: true, multiple: false, title: 'Επιλογή φακέλου μουσικής' });
+    if (!dir) return;
+    items = []; stopPlayer(); $('#folderName').textContent = '📁 ' + dir; setStatus('Σάρωση φακέλου (native)…');
+    for (const f of await TAURI.invoke('scan_dir', { path: dir })) { const it = newItem(f.rel, f.name, f.ext, null, null, null); it.native = f.path; it.current = f.genre || ''; it.size = f.size; it.mtime = f.mtime; items.push(it); }
+    await afterScan();
+  } catch (e) { setStatus('Σφάλμα: ' + (e.message || e)); log(e.stack || e); toast('Σφάλμα: ' + (e.message || e), 'er'); }
+}
+if (TAURI) ['m4a', 'mp4', 'ogg', 'oga', 'opus', 'wav', 'aif', 'aiff'].forEach(e => WRITABLE.add(e));
+if (TAURI) { const b = $('#nativeBadge'); b.hidden = false; TAURI.invoke('app_info').then(i => { b.innerHTML = '<b>Native</b> Rust' + (i.portable ? ' · Portable' : '') + (i.key_model && i.tempo_model ? '' : ' · λείπουν μοντέλα') + (i.genre_model ? '' : ' · genre μέσω WebView'); nativeGenre = !!i.genre_model; b.title = 'Δεδομένα: ' + i.data_dir; }).catch(() => {}); }
+let ok44ctx = null;
+async function decodeMono44k(file) {
+  ok44ctx = ok44ctx || new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OK_SR });
+  let buf = await ok44ctx.decodeAudioData(await file.arrayBuffer());
+  if (buf.sampleRate !== OK_SR) {
+    const off = new OfflineAudioContext(buf.numberOfChannels, Math.ceil(buf.duration * OK_SR), OK_SR);
+    const s = off.createBufferSource(); s.buffer = buf; s.connect(off.destination); s.start();
+    buf = await off.startRendering();
+  }
+  const n = buf.length, ch = buf.numberOfChannels, y = new Float32Array(n);
+  for (let c = 0; c < ch; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) y[i] += d[i] / ch; }
+  let pk = 0; for (let i = 0; i < n; i++) { const v = Math.abs(y[i]); if (v > pk) pk = v; }
+  if (pk > 0) { const g = 0.95 / pk; for (let i = 0; i < n; i++) y[i] *= g; }   // κορυφή 0.95, όπως στο OpenKeyScan
+  return y;
+}
+async function ensureOK() {
+  if (okSess) return;
+  if (TAURI) { okSess = { native: true }; return; }
+  setStatus('Φόρτωση OpenKeyScan (ONNX Runtime + μοντέλο KeyNet)…');
+  okOrt = okOrt || await import(OK_ORT);
+  okOrt.env.wasm.numThreads = 1;
+  let buf = okLocal || await cacheGet('okmodel');
+  if (!buf) {
+    try {
+      const r = await fetch(OK_URL); if (!r.ok) throw new Error('HTTP ' + r.status);
+      buf = await r.arrayBuffer(); await cachePut('okmodel', buf);
+    } catch (e) { throw new Error('δεν κατέβηκε το keynet.onnx (' + (e.message || e) + ') — χρησιμοποίησε το κουμπί «keynet.onnx…»'); }
+  }
+  okSess = await okOrt.InferenceSession.create(new Uint8Array(buf), { executionProviders: ['wasm'] });
+  log('OpenKeyScan KeyNet φορτώθηκε');
+}
+async function okKey(y) {
+  if (y.length < OK_SR * 3) throw new Error('πολύ σύντομο αρχείο');
+  const st = Math.max(0, Math.floor((y.length - OK_MAXS * OK_SR) / 2));
+  const { data, T } = okSpec(y.subarray(st, st + OK_MAXS * OK_SR));
+  const out = await okSess.run({ spec: new okOrt.Tensor('float32', data, [1, 1, OK_BINS, T]) });
+  const lg = Array.from(out.logits.data); let ci = 0; lg.forEach((v, i) => { if (v > lg[ci]) ci = i; });
+  const e = lg.map(v => Math.exp(v - lg[ci])), z = e.reduce((a, b) => a + b, 0);
+  return { cls: ci, conf: e[ci] / z };
+}
+function applyOK(it) {
+  const a = it.an, r = it.ok; if (!a || !r) return;
+  if (r.cls != null) {
+    const tn = OK_NAMES[r.cls].split(' ');
+    a.key = tn[0].replace(/^([A-G])#/, '$1♯').replace(/^([A-G])b/, '$1♭') + ' ' + tn[1];
+    a.cam = (r.cls % 12 + 1) + (r.cls < 12 ? 'A' : 'B'); a.root = OK_PC[tn[0]]; a.conf = Math.round(r.conf * 100); a.ke = 'OpenKeyScan';
+  }
+  if (r.bpm != null) { a.bpm = r.bpm; a.be = 'DeepRhythm'; a.bconf = Math.round((r.bconf || 0) * 100); }
+}
+async function ensureDR() {
+  if (drSess) return;
+  if (TAURI) { drSess = { native: true }; return; }
+  setStatus('Φόρτωση DeepRhythm (μοντέλο τέμπο)…');
+  okOrt = okOrt || await import(OK_ORT); okOrt.env.wasm.numThreads = 1;
+  let buf = drLocal || await cacheGet('drmodel');
+  if (!buf) {
+    try { const r = await fetch(DR_URL); if (!r.ok) throw new Error('HTTP ' + r.status); buf = await r.arrayBuffer(); await cachePut('drmodel', buf); }
+    catch (e) { throw new Error('δεν κατέβηκε το deeprhythm.onnx (' + (e.message || e) + ') — χρησιμοποίησε το κουμπί «deeprhythm.onnx…» στις Ρυθμίσεις'); }
+  }
+  drSess = await okOrt.InferenceSession.create(new Uint8Array(buf), { executionProviders: ['wasm'] });
+  log('DeepRhythm φορτώθηκε');
+}
+$('#drFile').onclick = () => $('#drInp').click();
+$('#drInp').onchange = async e => { const f = e.target.files[0]; if (!f) return; drLocal = await f.arrayBuffer(); await cachePut('drmodel', drLocal); drSess = null; toast('Φορτώθηκε τοπικά το deeprhythm.onnx', 'ok'); e.target.value = ''; };
+if (TAURI) {
+  const origRestore = $('#restore').onclick;
+  $('#restore').onclick = async () => {
+    if (busy) return;
+    const sel = items.filter(i => i.checked), pool = (sel.length ? sel : items).filter(i => i.native);
+    if (!pool.length) return origRestore && origRestore();
+    setBusy(true); setStatus('Αναζήτηση αντιγράφων .bak…');
+    const found = []; for (const it of pool) if (await TAURI.invoke('has_backup', { path: it.native })) found.push(it);
+    setBusy(false); setStatus('');
+    if (!found.length) { toast('Δεν βρέθηκαν αρχεία .bak', 'wa'); return; }
+    if (!confirm(`Θα επαναφερθούν ${found.length} αρχεία από τα .bak. Οι τρέχουσες εκδόσεις θα αντικατασταθούν. Συνέχεια;`)) return;
+    setBusy(true); let ok = 0, bad = 0;
+    for (let i = 0; i < found.length; i++) {
+      const it = found[i]; setStatus(`Επαναφορά ${i + 1}/${found.length}: ${it.name}`); setBar(i / found.length);
+      try { await TAURI.invoke('restore_backup', { path: it.native }); it.current = await TAURI.invoke('read_genre', { path: it.native }); it.written = false; it.status = '↩ επαναφέρθηκε'; ok++; }
+      catch (e) { it.status = '✖ ' + (e.message || e); bad++; }
+      updateRow(it);
+    }
+    setBar(0); setStatus(`Η επαναφορά ολοκληρώθηκε: ${ok} επιτυχίες, ${bad} αποτυχίες.`); setBusy(false); renderAll();
+    toast(`Επαναφορά: ${ok} επιτυχίες` + (bad ? `, ${bad} αποτυχίες` : ''), bad ? 'wa' : 'ok');
+  };
+}
+$('#okFile').onclick = () => $('#okInp').click();
+$('#okInp').onchange = async e => { const f = e.target.files[0]; if (!f) return; okLocal = await f.arrayBuffer(); await cachePut('okmodel', okLocal); okSess = null; toast('Φορτώθηκε τοπικά το keynet.onnx', 'ok'); e.target.value = ''; };
+
+/* ---------- Native ανάλυση (Tauri): μία αποκωδικοποίηση στη Rust για genre, key, τέμπο και μετρήσεις ---------- */
+async function genreJS(file) {
+  await ensureModel();
+  const audio = await decodeMono16k(file), segs = segments(audio, +$('#nwin').value), acc = new Map();
+  for (const s of segs) { const out = await classifier(s, { top_k: 400 }); for (const o of out) acc.set(o.label, (acc.get(o.label) || 0) + o.score / segs.length); }
+  return [...acc].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([label, score]) => ({ label, score }));
+}
+async function analyzeItem(it) {
+  if (!TAURI) return analyzeItemJS(it);
+  const useCache = $('#useCache').checked, ml = $('#useML').checked;
+  const f0 = it.native ? { size: it.size || 0, lastModified: it.mtime || 0 } : await getFile(it);
+  if (f0.size > (+$('#maxmb').value || 200) * 1048576) throw new Error('πολύ μεγάλο αρχείο');
+  const ck = cacheKey(it, f0), kk = ck + '|ok2';
+  const skipML = $('#skipEx').checked && it.current && it.current !== '—' && it.current !== '?';
+  const wK = $('#useOK').checked, wT = $('#useDR').checked;
+  if (ml && !it.top && !skipML && useCache) { const h = await cacheGet(ck); if (h) { it.top = h; cacheHits++; } }
+  if (!it.an && useCache) { const h = await cacheGet(ck + '|dsp'); if (h) it.an = h; }
+  const r = it.ok || (useCache ? await cacheGet(kk) : null) || {};
+  const needG = ml && !it.top && !skipML && nativeGenre, needF = !it.an, needK = wK && r.cls == null, needT = wT && r.bpm == null;
+  if (needG || needF || needK || needT) {
+    const req = { key: needK, tempo: needT, genre: needG, feats: needF, nwin: +$('#nwin').value };
+    const n = it.native ? await TAURI.invoke('analyze_path', { path: it.native, req }) : await nativeAnalyze(f0, req);
+    (n.errors || []).forEach(e => log(it.path + ': native: ' + e));
+    if (n.genre) { it.top = n.genre; if (useCache) await cachePut(ck, it.top); }
+    if (n.feats) { it.an = n.feats; if (useCache) await cachePut(ck + '|dsp', it.an); }
+    if (n.key) { r.cls = n.key.cls; r.conf = n.key.conf; }
+    if (n.tempo) { r.bpm = n.tempo.bpm; r.bconf = n.tempo.conf; }
+    if (useCache && (n.key || n.tempo)) await cachePut(kk, r);
+    if (needG && !n.genre) { nativeGenre = false; log('Το native MAEST δεν είναι διαθέσιμο — χρήση Transformers.js στο WebView'); }
+  }
+  if (ml && !it.top && !skipML && !nativeGenre) {   // εφεδρικά: MAEST μέσω Transformers.js
+    it.top = await genreJS(it.native ? await nativeFile(it) : f0);
+    if (useCache) await cachePut(ck, it.top);
+  }
+  if (wK || wT) { it.ok = r; applyOK(it); }
+  if (it.top && !it.edited) it.sugg = buildTag(it.top);
+  it.checked = !!it.sugg;
+}
+
+/* ---------- Σύνδεση ---------- */
+if (window.showDirectoryPicker) $('#pick').onclick = pickFolder;
+else { $('#pick').hidden = true; $('#pickRO').hidden = false; setStatus('Ο browser δεν υποστηρίζει εγγραφή σε φακέλους — χρησιμοποίησε Chrome ή Edge για εγγραφή tags.'); }
+$('#pickRO').onclick = () => $('#fallback').click();
+$('#fallback').addEventListener('change', pickFallback);
+$('#run').onclick = run; $('#stop').onclick = () => { cancel = true; };
+$('#apply').onclick = apply; $('#csv').onclick = exportCSV; $('#json').onclick = exportJSON;
+renderAll();
+</script>
+</body>
+</html>

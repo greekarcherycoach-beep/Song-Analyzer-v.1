@@ -1,0 +1,17 @@
+[package]
+name = "satcore"
+version = "0.1.0"
+edition = "2021"
+description = "Native audio analysis core: decoding, log-CQT and OpenKeyScan KeyNet inference"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+rustfft = "6"
+symphonia = { version = "0.5", features = ["all"] }
+tract-onnx = "0.21"
+lofty = "0.22"
+serde = { version = "1", features = ["derive"] }
+
+[lib]
+doctest = false
