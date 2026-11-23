@@ -1,0 +1,65 @@
+name: Build & Release (Windows)
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      bundle_maest:
+        description: "Download and bundle the MAEST genre model (maest.onnx, large; check its licence)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Download ONNX models
+        shell: pwsh
+        run: |
+          if ("${{ inputs.bundle_maest }}" -eq "true") { ./scripts/fetch-models.ps1 -Maest } else { ./scripts/fetch-models.ps1 }
+
+      - name: Test core
+        run: cargo test -p satcore --release
+
+      - name: Build (exe + NSIS installer)
+        run: cargo tauri build
+
+      - name: Make portable zip
+        shell: pwsh
+        run: |
+          $d = "dist/SongAnalyzerTagger-portable"
+          New-Item -ItemType Directory -Force $d | Out-Null
+          Copy-Item target/release/song-analyzer-tagger.exe $d
+          Copy-Item -Recurse src-tauri/models "$d/models"
+          Set-Content "$d/portable.txt" "Portable mode: settings, cache and models live in ./data and ./models next to the exe."
+          Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md $d
+          Compress-Archive -Path $d -DestinationPath dist/SongAnalyzerTagger-portable-win-x64.zip -Force
+          Copy-Item (Get-ChildItem target/release/bundle/nsis/*-setup.exe).FullName dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/*.*
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*-setup.exe
+            dist/SongAnalyzerTagger-portable-win-x64.zip
+          generate_release_notes: true
